@@ -41,7 +41,6 @@ px4_add_module(
 		ms5837_main.cpp
 		MS5837.hpp
 	DEPENDS
-		cdev
 		drivers__device
 		drivers_barometer
 		px4_work_queue
