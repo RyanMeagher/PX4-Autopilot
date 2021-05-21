@@ -378,6 +378,7 @@ int MS5837::collect()
 		if (TEMP < 2000) {
 
 			int32_t T2 = ((int64_t)3 * ((int64_t)POW2(dT))) >> 33;
+			//int32_t T2 = 3 * ((int64_t)POW2(dT) >> 33);
 
 			int64_t f = POW2((int64_t)TEMP - 2000);
 			int64_t OFF2 = 3 * f >> 1;
