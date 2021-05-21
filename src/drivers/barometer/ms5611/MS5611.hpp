@@ -45,6 +45,7 @@
 enum MS56XX_DEVICE_TYPES {
 	MS5611_DEVICE	= 5611,
 	MS5607_DEVICE	= 5607,
+    MS5837_DEVICE	= 5837,
 };
 
 /* helper macro for handling report buffer indices */
@@ -82,7 +83,7 @@ enum MS56XX_DEVICE_TYPES {
  * conversion finished
  */
 #define MS5611_CONVERSION_INTERVAL	10000	/* microseconds */
-#define MS5611_MEASUREMENT_RATIO	3	/* pressure measurements per temperature measurement */
+#define MS5611_MEASUREMENT_RATIO	3
 
 class MS5611 : public I2CSPIDriver<MS5611>
 {

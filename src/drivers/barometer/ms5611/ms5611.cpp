@@ -128,6 +128,11 @@ MS5611::init()
 			_interface->set_device_type(DRV_BARO_DEVTYPE_MS5607);
 			_px4_barometer.set_device_type(DRV_BARO_DEVTYPE_MS5607);
 			break;
+
+        case MS5837_DEVICE:
+            _interface->set_device_type(DRV_BARO_DEVTYPE_MS5607);
+            _px4_barometer.set_device_type(DRV_BARO_DEVTYPE_MS5607);
+            break;
 		}
 
 		ret = OK;
@@ -254,43 +259,75 @@ MS5611::collect()
 	/* handle a measurement */
 	if (_measure_phase == 0) {
 
-		/* temperature offset (in ADC units) */
-		int32_t dT = (int32_t)raw - ((int32_t)_prom.c5_reference_temp << 8);
+        /* temperature offset (in ADC units) */
+        int32_t dT = (int32_t) raw - ((int32_t) _prom.c5_reference_temp << 8);
 
-		/* absolute temperature in centidegrees - note intermediate value is outside 32-bit range */
-		int32_t TEMP = 2000 + (int32_t)(((int64_t)dT * _prom.c6_temp_coeff_temp) >> 23);
+        /* absolute temperature in centidegrees - note intermediate value is outside 32-bit range */
+        int32_t TEMP = 2000 + (int32_t) (((int64_t) dT * _prom.c6_temp_coeff_temp) >> 23);
 
-		/* base sensor scale/offset values */
-		if (_device_type == MS5611_DEVICE) {
-			/* Perform MS5611 Caculation */
-			_OFF  = ((int64_t)_prom.c2_pressure_offset << 16) + (((int64_t)_prom.c4_temp_coeff_pres_offset * dT) >> 7);
-			_SENS = ((int64_t)_prom.c1_pressure_sens << 15) + (((int64_t)_prom.c3_temp_coeff_pres_sens * dT) >> 8);
+        /* base sensor scale/offset values */
+        if (_device_type == MS5611_DEVICE) {
+            /* Perform MS5611 Caculation */
+            _OFF = ((int64_t) _prom.c2_pressure_offset << 16) + (((int64_t) _prom.c4_temp_coeff_pres_offset * dT) >> 7);
+            _SENS = ((int64_t) _prom.c1_pressure_sens << 15) + (((int64_t) _prom.c3_temp_coeff_pres_sens * dT) >> 8);
 
-			/* MS5611 temperature compensation */
-			if (TEMP < 2000) {
+            /* MS5611 temperature compensation */
+            if (TEMP < 2000) {
 
-				int32_t T2 = POW2(dT) >> 31;
+                int32_t T2 = POW2(dT) >> 31;
 
-				int64_t f = POW2((int64_t)TEMP - 2000);
-				int64_t OFF2 = 5 * f >> 1;
-				int64_t SENS2 = 5 * f >> 2;
+                int64_t f = POW2((int64_t) TEMP - 2000);
+                int64_t OFF2 = 5 * f >> 1;
+                int64_t SENS2 = 5 * f >> 2;
 
-				if (TEMP < -1500) {
+                if (TEMP < -1500) {
 
-					int64_t f2 = POW2(TEMP + 1500);
-					OFF2 += 7 * f2;
-					SENS2 += 11 * f2 >> 1;
-				}
+                    int64_t f2 = POW2(TEMP + 1500);
+                    OFF2 += 7 * f2;
+                    SENS2 += 11 * f2 >> 1;
+                }
 
-				TEMP -= T2;
-				_OFF  -= OFF2;
-				_SENS -= SENS2;
-			}
+                TEMP -= T2;
+                _OFF -= OFF2;
+                _SENS -= SENS2;
+            }
 
-		} else if (_device_type == MS5607_DEVICE) {
+        } else if (_device_type == MS5837_DEVICE) {
+
+            int32_t SENSi = 0;
+            int32_t OFFi = 0;
+            int32_t Ti = 0;
+            int64_t OFF2 = 0;
+            int64_t SENS2 = 0;
+
+            _SENS = ((int64_t) _prom.c1_pressure_sens << 16) + (((int64_t) _prom.c3_temp_coeff_pres_sens * dT) >> 7);
+            _OFF = ((int64_t) _prom.c2_pressure_offset << 17) + (((int64_t) _prom.c4_temp_coeff_pres_offset * dT) >> 6);
+
+            if (TEMP < 2000) {
+                Ti = (((int64_t) dT * (int64_t) dT * 3) >> 33);
+                OFFi = (((TEMP - 2000) * (TEMP - 2000) * 3) >> 1);
+                SENSi = (((TEMP - 2000) * (TEMP - 2000) * 5) >> 3);
+                if (TEMP < -1500) {
+                    OFFi += ((TEMP + 1500) * (TEMP + 1500) * 7);
+                    SENSi += ((TEMP + 1500) * (TEMP + 1500) * 4);
+
+                }
+            } else if (TEMP >= 2000) {
+                Ti = (((int64_t) dT * (int64_t) dT * 3) >> 37);
+                OFFi = (((TEMP - 2000) * (TEMP - 2000)) >> 4);
+                SENSi = 0;
+            }
+            TEMP  -=   Ti;
+            _OFF  -=   OFFi;
+            _SENS -=   _SENSi;
+
+        }
+
+		else if (_device_type == MS5607_DEVICE) {
 			/* Perform MS5607 Caculation */
 			_OFF  = ((int64_t)_prom.c2_pressure_offset << 17) + (((int64_t)_prom.c4_temp_coeff_pres_offset * dT) >> 6);
 			_SENS = ((int64_t)_prom.c1_pressure_sens << 16) + (((int64_t)_prom.c3_temp_coeff_pres_sens * dT) >> 7);
+
 
 			/* MS5607 temperature compensation */
 			if (TEMP < 2000) {
@@ -316,7 +353,8 @@ MS5611::collect()
 		float temperature = TEMP / 100.0f;
 		_px4_barometer.set_temperature(temperature);
 
-	} else {
+	}
+	else {
 		/* pressure calculation, result in Pa */
 		int32_t P = (((raw * _SENS) >> 21) - _OFF) >> 15;
 
@@ -339,7 +377,7 @@ void MS5611::print_status()
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 
-	printf("device:         %s\n", _device_type == MS5611_DEVICE ? "ms5611" : "ms5607");
+	printf("device:         %s\n", _device_type == MS5837_DEVICE ? "ms5837" : "device not setup correctly");
 }
 
 namespace ms5611
@@ -348,47 +386,31 @@ namespace ms5611
 /**
  * MS5611 crc4 cribbed from the datasheet
  */
-bool
-crc4(uint16_t *n_prom)
-{
-	int16_t cnt;
-	uint16_t n_rem;
-	uint16_t crc_read;
-	uint8_t n_bit;
 
-	n_rem = 0x00;
+    bool crc4(uint16_t *n_prom) {
+        uint16_t n_rem = 0;
 
-	/* save the read crc */
-	crc_read = n_prom[7];
+        n_prom[0] = ((n_prom[0]) & 0x0FFF);
+        n_prom[7] = 0;
 
-	/* remove CRC byte */
-	n_prom[7] = (0xFF00 & (n_prom[7]));
+        for (uint8_t i = 0; i < 16; i++) {
+            if (i % 2 == 1) {
+                n_rem ^= (uint16_t) ((n_prom[i >> 1]) & 0x00FF);
+            } else {
+                n_rem ^= (uint16_t) (n_prom[i >> 1] >> 8);
+            }
+            for (uint8_t n_bit = 8; n_bit > 0; n_bit--) {
+                if (n_rem & 0x8000) {
+                    n_rem = (n_rem << 1) ^ 0x3000;
+                } else {
+                    n_rem = (n_rem << 1);
+                }
+            }
+        }
 
-	for (cnt = 0; cnt < 16; cnt++) {
-		/* uneven bytes */
-		if (cnt & 1) {
-			n_rem ^= (uint8_t)((n_prom[cnt >> 1]) & 0x00FF);
+        n_rem = ((n_rem >> 12) & 0x000F);
 
-		} else {
-			n_rem ^= (uint8_t)(n_prom[cnt >> 1] >> 8);
-		}
+        return n_rem ^ 0x00;
+    }
 
-		for (n_bit = 8; n_bit > 0; n_bit--) {
-			if (n_rem & 0x8000) {
-				n_rem = (n_rem << 1) ^ 0x3000;
-
-			} else {
-				n_rem = (n_rem << 1);
-			}
-		}
-	}
-
-	/* final 4 bit remainder is CRC value */
-	n_rem = (0x000F & (n_rem >> 12));
-	n_prom[7] = crc_read;
-
-	/* return true if CRCs match */
-	return (0x000F & crc_read) == (n_rem ^ 0x00);
 }
-
-} // namespace ms5611

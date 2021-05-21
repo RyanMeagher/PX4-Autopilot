@@ -44,6 +44,7 @@
 #define MS5611_ADDRESS_1		0x76	/* address select pins pulled high (PX4FMU series v1.6+) */
 #define MS5611_ADDRESS_2		0x77    /* address select pins pulled low (PX4FMU prototypes) */
 
+
 class MS5611_I2C : public device::I2C
 {
 public:
@@ -206,6 +207,8 @@ MS5611_I2C::_measure(unsigned addr)
 	return transfer(&cmd, 1, nullptr, 0);
 }
 
+
+
 int
 MS5611_I2C::_read_prom()
 {
@@ -225,7 +228,7 @@ MS5611_I2C::_read_prom()
 	bool bits_stuck = true;
 
 	/* read and convert PROM words */
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 7; i++) {
 		uint8_t cmd = ADDR_PROM_SETUP + (i * 2);
 
 		if (PX4_OK != transfer(&cmd, 1, &prom_buf[0], 2)) {
