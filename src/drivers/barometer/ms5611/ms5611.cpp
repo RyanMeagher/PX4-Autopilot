@@ -297,8 +297,7 @@ MS5611::collect()
             int32_t SENSi = 0;
             int32_t OFFi = 0;
             int32_t Ti = 0;
-            int64_t OFF2 = 0;
-            int64_t SENS2 = 0;
+
 
             _SENS = ((int64_t) _prom.c1_pressure_sens << 16) + (((int64_t) _prom.c3_temp_coeff_pres_sens * dT) >> 7);
             _OFF = ((int64_t) _prom.c2_pressure_offset << 17) + (((int64_t) _prom.c4_temp_coeff_pres_offset * dT) >> 6);
@@ -319,7 +318,7 @@ MS5611::collect()
             }
             TEMP  -=   Ti;
             _OFF  -=   OFFi;
-            _SENS -=   _SENSi;
+            _SENS -=   SENSi;
 
         }
 
