@@ -41,12 +41,12 @@
 /*
  * MS5837 I2C address
  */
-#define MS5837_ADDRESS				0x76
+#define MS5837_ADDRESS				    0x76
 
 /*
  * MS5837 internal constants and data structures
  */
-#define ADDR_RESET_CMD				0x1E	/* write to this address to reset chip */
+#define ADDR_RESET_CMD				    0x1E	/* write to this address to reset chip */
 #define ADDR_CMD_CONVERT_D1_OSR256		0x40	/* write to this address to start pressure conversion */
 #define ADDR_CMD_CONVERT_D1_OSR512		0x42	/* write to this address to start pressure conversion */
 #define ADDR_CMD_CONVERT_D1_OSR1024		0x44	/* write to this address to start pressure conversion */
@@ -144,12 +144,12 @@ int MS5837::init()
 		/* state machine will have generated a report, copy it out */
 		//const sensor_baro_s &brp = _px4_barometer.get();
 
-		//if (brp.pressure < 520.0f) {
+		//if (brp.pressure < 0.0f) {
 		//	/* This is likely not this device, abort */
 		//	ret = -EINVAL;
 		//	break;
 
-		//} else if (brp.pressure > 1500.0f) {
+		//} else if (brp.pressure > 3000.0f) {
 		//	/* This is likely not this device, abort */
 		//	ret = -EINVAL;
 		//	break;
@@ -377,7 +377,7 @@ int MS5837::collect()
 		/* MS5837 temperature compensation */
 		if (TEMP < 2000) {
 
-			int32_t T2 = 3 * ((int64_t)POW2(dT) >> 33);
+			int32_t T2 = ((int64_t)3 * ((int64_t)POW2(dT))) >> 33;
 
 			int64_t f = POW2((int64_t)TEMP - 2000);
 			int64_t OFF2 = 3 * f >> 1;
@@ -394,8 +394,9 @@ int MS5837::collect()
 			_OFF  -= OFF2;
 			_SENS -= SENS2;
 		} else {
-			int32_t T2 = 2 *((int64_t)POW2(dT) >> 37);
+			//int32_t T2 = 2 *((int64_t)POW2(dT) >> 37);
 
+			int32_t T2 = ((int64_t)2 * (int64_t)POW2(dT)) >> 37;
 			int64_t f = POW2((int64_t)TEMP - 2000);
 			int64_t OFF2 = 1 * f >> 4;
 			int64_t SENS2 = 0;
