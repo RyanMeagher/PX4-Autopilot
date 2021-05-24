@@ -225,7 +225,7 @@ MS5611_I2C::_read_prom()
 	bool bits_stuck = true;
 
 	/* read and convert PROM words */
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 7; i++) {
 		uint8_t cmd = ADDR_PROM_SETUP + (i * 2);
 
 		if (PX4_OK != transfer(&cmd, 1, &prom_buf[0], 2)) {

@@ -21,4 +21,5 @@ bmi088 -G -R 12 -s start
 
 # Internal I2C Baro
 ms5837 -X -b 1 start
+#ms5611 -X start
 #bmp388 -I start
