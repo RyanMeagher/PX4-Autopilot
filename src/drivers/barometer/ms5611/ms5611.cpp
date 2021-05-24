@@ -128,6 +128,11 @@ MS5611::init()
 			_interface->set_device_type(DRV_BARO_DEVTYPE_MS5607);
 			_px4_barometer.set_device_type(DRV_BARO_DEVTYPE_MS5607);
 			break;
+
+        case MS5837_DEVICE:
+            _interface->set_device_type(DRV_BARO_DEVTYPE_MS5607);
+            _px4_barometer.set_device_type(DRV_BARO_DEVTYPE_MS5607);
+            break;
 		}
 
 		ret = OK;
@@ -170,7 +175,7 @@ MS5611::RunImpl()
 				/*
 				 * The ms5611 seems to regularly fail to respond to
 				 * its address; this happens often enough that we'd rather not
-				 * spam the console with a message for this.
+				 * spam the console with a message for thi
 				 */
 			} else {
 				//DEVICE_LOG("collection error %d", ret);
@@ -287,7 +292,45 @@ MS5611::collect()
 				_SENS -= SENS2;
 			}
 
-		} else if (_device_type == MS5607_DEVICE) {
+        } else if (_device_type == MS5837_DEVICE) {
+
+            _OFF = ((int64_t) _prom.c2_pressure_offset << 16) + (((int64_t) _prom.c4_temp_coeff_pres_offset * dT) >> 7);
+            _SENS = ((int64_t) _prom.c1_pressure_sens << 15) + (((int64_t) _prom.c3_temp_coeff_pres_sens * dT) >> 8);
+
+            /* MS5837 temperature compensation */
+            if (TEMP < 2000) {
+
+                int32_t T2 = 3 * ((int64_t) POW2(dT) >> 33);
+
+                int64_t f = POW2((int64_t) TEMP - 2000);
+                int64_t OFF2 = 3 * f >> 1;
+                int64_t SENS2 = 5 * f >> 3;
+
+                if (TEMP < -1500) {
+
+                    int64_t f2 = POW2(TEMP + 1500);
+                    OFF2 += 7 * f2;
+                    SENS2 += f2 >> 2;
+                }
+
+                TEMP -= T2;
+                _OFF -= OFF2;
+                _SENS -= SENS2;
+            } else {
+                int32_t T2 = 2 * ((int64_t) POW2(dT) >> 37);
+
+                int64_t f = POW2((int64_t) TEMP - 2000);
+                int64_t OFF2 = 1 * f >> 4;
+                int64_t SENS2 = 0;
+
+                TEMP -= T2;
+                _OFF -= OFF2;
+                _SENS -= SENS2;
+            }
+        }
+
+
+        else if (_device_type == MS5607_DEVICE) {
 			/* Perform MS5607 Caculation */
 			_OFF  = ((int64_t)_prom.c2_pressure_offset << 17) + (((int64_t)_prom.c4_temp_coeff_pres_offset * dT) >> 6);
 			_SENS = ((int64_t)_prom.c1_pressure_sens << 16) + (((int64_t)_prom.c3_temp_coeff_pres_sens * dT) >> 7);
@@ -317,12 +360,11 @@ MS5611::collect()
 		_px4_barometer.set_temperature(temperature);
 
 	} else {
-		/* pressure calculation, result in Pa */
-		int32_t P = (((raw * _SENS) >> 21) - _OFF) >> 15;
+            int32_t P = (((int64_t)(raw * _SENS) >> 21) - _OFF) >> 13;
 
-		float pressure = P / 100.0f;		/* convert to millibar */
+            float pressure = P / 10.0f;		/* convert to millibar */
 
-		_px4_barometer.update(timestamp_sample, pressure);
+            _px4_barometer.update(timestamp_sample, pressure);
 	}
 
 	/* update the measurement state machine */
