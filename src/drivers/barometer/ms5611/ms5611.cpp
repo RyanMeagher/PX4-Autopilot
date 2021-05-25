@@ -242,7 +242,7 @@ MS5611::measure()
 int
 MS5611::collect()
 {
-	uint32_t raw;
+	int32_t raw;
 
 	perf_begin(_sample_perf);
 
@@ -260,10 +260,10 @@ MS5611::collect()
 	if (_measure_phase == 0) {
 
 		/* temperature offset (in ADC units) */
-		int32_t dT = (int32_t)raw - ((int32_t)_prom.c5_reference_temp << 8);
+		int32_t dT = raw - ((uint32_t)_prom.c5_reference_temp << 8);
 
 		/* absolute temperature in centidegrees - note intermediate value is outside 32-bit range */
-		int32_t TEMP = 2000 + (int32_t)(((int64_t)dT * _prom.c6_temp_coeff_temp) >> 23);
+		int32_t TEMP = 2000 + (((int64_t)dT * (int64_t)_prom.c6_temp_coeff_temp) / 8388608);
 
 		/* base sensor scale/offset values */
 		if (_device_type == MS5611_DEVICE) {
@@ -292,19 +292,21 @@ MS5611::collect()
 				_SENS -= SENS2;
 			}
 
-        } else if (_device_type == MS5837_DEVICE) {
+        }
+		else if (_device_type == MS5837_DEVICE) {
 
-            _OFF = ((int64_t) _prom.c2_pressure_offset << 16) + (((int64_t) _prom.c4_temp_coeff_pres_offset * dT) >> 7);
-            _SENS = ((int64_t) _prom.c1_pressure_sens << 15) + (((int64_t) _prom.c3_temp_coeff_pres_sens * dT) >> 8);
+            _OFF = ((int64_t) _prom.c2_pressure_offset * (int64_t)65536) + (((int64_t) _prom.c4_temp_coeff_pres_offset * (int64_t)dT) / (int64_t)128);
+            _SENS = ((int64_t) _prom.c1_pressure_sens * (int64_t) 32768) + (((int64_t) _prom.c3_temp_coeff_pres_sens * (int64_t) dT) / (int64_t)256);
 
             /* MS5837 temperature compensation */
             if (TEMP < 2000) {
 
-                int32_t T2 = ((int64_t)3 * (int64_t) POW2(dT)) >> 33;
 
-                int64_t f = POW2((int64_t) TEMP - 2000);
-                int64_t OFF2 = 3 * f >> 1;
-                int64_t SENS2 = 5 * f >> 3;
+                int32_t T2 =((int64_t)3 * ((int64_t)dT * (int64_t)dT) / (int64_t)8589934592);
+
+                int64_t aux = (TEMP - 2000) * (TEMP - 2000);
+                int64_t OFF2 =  3 * aux / 2;
+                int64_t SENS2 = 5 * aux / 8;
 
                 if (TEMP < -1500) {
 
@@ -316,16 +318,10 @@ MS5611::collect()
                 TEMP -= T2;
                 _OFF -= OFF2;
                 _SENS -= SENS2;
-            } else {
-                int32_t T2 = ((int64_t) 2 * (int64_t) POW2(dT)) >> 37;
+            }
+            else {
 
-                int64_t f = POW2((int64_t) TEMP - 2000);
-                int64_t OFF2 = 1 * f >> 4;
-                int64_t SENS2 = 0;
 
-                TEMP -= T2;
-                _OFF -= OFF2;
-                _SENS -= SENS2;
             }
         }
 
@@ -360,9 +356,9 @@ MS5611::collect()
 		_px4_barometer.set_temperature(temperature);
 
 	} else {
-            int32_t P = (((int64_t)(raw * _SENS) >> 21) - _OFF) >> 13;
+            int32_t pressure = ((int64_t)raw * _SENS / (int64_t)2097152 - _OFF) / (int64_t)8192;
 
-            float pressure = P / 10.0f;		/* convert to millibar */
+            pressure =pressure * 10;
 
             _px4_barometer.update(timestamp_sample, pressure);
 	}
