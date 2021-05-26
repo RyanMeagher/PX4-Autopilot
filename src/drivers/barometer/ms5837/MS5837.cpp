@@ -80,13 +80,11 @@
 /* helper macro for handling report buffer indices */
 #define INCREMENT(_x, _lim)	do { __typeof__(_x) _tmp = _x+1; if (_tmp >= _lim) _tmp = 0; _x = _tmp; } while(0)
 
-/* helper macro for arithmetic - returns the square of the argument */
-#define POW2(_x)		((_x) * (_x))
-
-MS5837::MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency):
+MS5837::MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency, MS5837_TYPE ms5837_type):
 	I2C(DRV_BARO_DEVTYPE_MS5837, MODULE_NAME, bus, MS5837_ADDRESS, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
 	_px4_barometer(get_device_id()),
+	_ms5837_type(ms5837_type),
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": read")),
 	_measure_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": measure")),
 	_comms_errors(perf_alloc(PC_COUNT, MODULE_NAME": com_err"))
@@ -104,66 +102,37 @@ MS5837::~MS5837()
 int MS5837::init()
 {
 	int ret = I2C::init();
-
 	if (ret != PX4_OK) {
-		PX4_ERR("init failed");
+		PX4_ERR("I2C init failed MS5837");
 		return PX4_ERROR;
 	}
 
 	/* do a first measurement cycle to populate reports with valid data */
 	_measure_phase = 0;
 
-	while (true) {
-		/* do temperature first */
-		if (PX4_OK != measure()) {
-			ret = -EIO;
-			break;
-		}
-
-		px4_usleep(MS5837_CONVERSION_INTERVAL);
-
-		if (PX4_OK != collect()) {
-			ret = -EIO;
-			break;
-		}
-
-		/* now do a pressure measurement */
-		if (PX4_OK != measure()) {
-			ret = -EIO;
-			break;
-		}
-
-		px4_usleep(MS5837_CONVERSION_INTERVAL);
-
-		if (PX4_OK != collect()) {
-			ret = -EIO;
-			break;
-		}
-
-// TODO FIX THESE FOR THE MS5837  MS5837 range is 0 to 30 BAR
-		/* state machine will have generated a report, copy it out */
-		//const sensor_baro_s &brp = _px4_barometer.get();
-
-		//if (brp.pressure < 520.0f) {
-		//	/* This is likely not this device, abort */
-		//	ret = -EINVAL;
-		//	break;
-
-		//} else if (brp.pressure > 1500.0f) {
-		//	/* This is likely not this device, abort */
-		//	ret = -EINVAL;
-		//	break;
-		//}
-//////////
-
-		ret = PX4_OK;
-
-		break;
+	/* do temperature first */
+	if (PX4_OK != measure()) {
+		return -EIO;
 	}
 
-	if (ret == 0) {
-		start();
+	px4_usleep(MS5837_CONVERSION_INTERVAL);
+
+	if (PX4_OK != collect()) {
+		return -EIO;
 	}
+
+	/* now do a pressure measurement */
+	if (PX4_OK != measure()) {
+		return -EIO;
+	}
+
+	px4_usleep(MS5837_CONVERSION_INTERVAL);
+
+	if (PX4_OK != collect()) {
+		return -EIO;
+	}
+
+	start();
 
 	return ret;
 }
@@ -225,20 +194,50 @@ int MS5837::read_prom()
 	return crc4(&_prom.c[0]) ? PX4_OK : -EIO;
 }
 
-
-int MS5837::register_read(uint8_t reg, void *data, unsigned count)
+bool MS5837::crc4(uint16_t *n_prom)
 {
-	uint8_t cmd = reg;
-	int ret = transfer(&cmd, 1, (uint8_t *)data, count);
-	return ret == PX4_OK ? count : ret;
+	int16_t cnt;
+	uint16_t n_rem;
+	uint16_t crc_read;
+	uint8_t n_bit;
+
+	n_rem = 0x00;
+
+	/* save the read in CRC */
+	crc_read = (n_prom[0] & 0xf000) >> 12;
+	n_prom[0] = (0x0fff & n_prom[0]);
+	n_prom[7] = 0;
+
+	for (cnt = 0; cnt < 16; cnt++) {
+		/* uneven bytes */
+		if (cnt & 1) {
+			n_rem ^= (uint8_t)((n_prom[cnt >> 1]) & 0x00FF);
+
+		} else {
+			n_rem ^= (uint8_t)(n_prom[cnt >> 1] >> 8);
+		}
+
+		for (n_bit = 8; n_bit > 0; n_bit--) {
+			if (n_rem & 0x8000) {
+				n_rem = (n_rem << 1) ^ 0x3000;
+
+			} else {
+				n_rem = (n_rem << 1);
+			}
+		}
+	}
+
+
+	/* final 4 bit remainder is CRC value */
+	n_rem = (0x000F & (n_rem >> 12));
+
+	/* Put the CRC back in the PROM data */
+	n_prom[0] |= (crc_read << 12) ;
+
+	/* return true if CRCs match */
+	return (crc_read == n_rem);
 }
 
-int MS5837::register_write(uint8_t reg, uint8_t data)
-{
-	uint8_t buf[2] = { reg, data};
-	int ret = transfer(buf, sizeof(buf), nullptr, 0);
-	return ret == PX4_OK ? 2 : ret;
-}
 
 void MS5837::start()
 {
@@ -274,7 +273,7 @@ void MS5837::RunImpl()
 		ret = collect();
 
 		if (ret != PX4_OK) {
-			// TODO is this true for the MS5837??  This comment was for the MS5611
+			// TODO is this true for the MS5837??
 			if (ret == -6) {
 				/*
 				 * The ms5837 seems to regularly fail to respond to
@@ -345,12 +344,15 @@ int MS5837::measure()
 int MS5837::collect()
 {
 	uint32_t raw;
+	int32_t dT, TEMP;
+	int64_t P, Ti = 0, OFFi = 0, SENSi = 0;
+
 
 	perf_begin(_sample_perf);
 
 	/* read the most recent measurement - read offset/size are hardcoded in the interface */
 	const hrt_abstime timestamp_sample = hrt_absolute_time();
-	int ret = read(0, (void *)&raw, 0);
+	int ret = read(0, (uint8_t *)&raw, 0);
 
 	if (ret < 0) {
 		perf_count(_comms_errors);
@@ -361,58 +363,80 @@ int MS5837::collect()
 	/* handle a measurement */
 	if (_measure_phase == 0) {
 
-		/* Perform MS5837 Caculation */
+		/* Perform MS5837 Temperature and Pressure Caculation */
 
 		/* temperature offset (in ADC units) */
-		int32_t dT = (int32_t)raw - ((int32_t)_prom.s.c5_reference_temp << 8);
+		dT = (int32_t)raw - ((int32_t)_prom.s.c5_reference_temp << 8);
 
 		/* absolute temperature in centidegrees - note intermediate value is outside 32-bit range */
-		int32_t TEMP = 2000 + (int32_t)(((int64_t)dT * _prom.s.c6_temp_coeff_temp) >> 23);
+		TEMP = 2000 + (((int64_t)dT * _prom.s.c6_temp_coeff_temp) >> 23);
 
-		/* base sensor scale/offset values */
-		/* Perform MS5611 Caculation */
-		_OFF  = ((int64_t)_prom.s.c2_pressure_offset << 16) + (((int64_t)_prom.s.c4_temp_coeff_pres_offset * dT) >> 7);
-		_SENS = ((int64_t)_prom.s.c1_pressure_sens << 15) + (((int64_t)_prom.s.c3_temp_coeff_pres_sens * dT) >> 8);
+		if (_ms5837_type == MS5837_30BA) {
 
-		/* MS5837 temperature compensation */
-		if (TEMP < 2000) {
+			/* MS5837_30BA temperature compensation */
+			if (TEMP < 2000) {
 
-			int32_t T2 = (3 * (int64_t)POW2(dT)) >> 33;
+				Ti = (3 * (int64_t)dT * (int64_t)dT) >> 33;
+				OFFi = 3 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) >> 1;
+				SENSi = 5 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) >> 3;
 
-			int64_t f = POW2((int64_t)TEMP - 2000);
-			int64_t OFF2 = 3 * f >> 1;
-			int64_t SENS2 = 5 * f >> 3;
+				/* Underwater temp should never be -15C */
+				if (TEMP < -1500) {
 
-			if (TEMP < -1500) {
+					OFFi += 7 * ((int64_t)TEMP + 1500) * ((int64_t)TEMP + 1500);
+					SENSi += 4 * ((int64_t)TEMP + 1500) * ((int64_t)TEMP + 1500);
+				}
 
-				int64_t f2 = POW2(TEMP + 1500);
-				OFF2 += 7 * f2;
-				SENS2 += f2 >> 2;
+			} else {
+				Ti = (2 * ((int64_t)(dT) * (int64_t)(dT))) >> 37;
+				OFFi = 1 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) >> 4;
+				SENSi = 0;
+
 			}
 
-			TEMP -= T2;
-			_OFF  -= OFF2;
-			_SENS -= SENS2;
-		} else {
-			int32_t T2 = (2 *(int64_t)POW2(dT)) >> 37;
+			/* base sensor scale/offset values */
+			_OFF  = ((int64_t)_prom.s.c2_pressure_offset << 16) + (((int64_t)_prom.s.c4_temp_coeff_pres_offset * dT) >> 7);
+			_OFF -= OFFi;
 
-			int64_t f = POW2((int64_t)TEMP - 2000);
-			int64_t OFF2 = 1 * f >> 4;
-			int64_t SENS2 = 0;
+			_SENS = ((int64_t)_prom.s.c1_pressure_sens << 15) + (((int64_t)_prom.s.c3_temp_coeff_pres_sens * dT) >> 8);
+			_SENS -= SENSi;
 
-			TEMP -= T2;
-			_OFF  -= OFF2;
-			_SENS -= SENS2;
+		} else { /* (_ms5837_type == MS5837_02BA) */
+
+			/* MS5837 BAR-02 temperature compensation */
+			if (TEMP < 2000) {
+
+				Ti = (11 * (int64_t)dT * (int64_t)dT) >> 35;
+				OFFi = 31 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) >> 3;
+				SENSi = 63 * ((int64_t)TEMP - 2000) * ((int64_t)TEMP - 2000) >> 5;
+			}
+
+			/* base sensor scale/offset values */
+			_OFF  = ((int64_t)_prom.s.c2_pressure_offset << 17) + (((int64_t)_prom.s.c4_temp_coeff_pres_offset * dT) >> 6);
+			_OFF -= OFFi;
+
+			_SENS = ((int64_t)_prom.s.c1_pressure_sens << 16) + (((int64_t)_prom.s.c3_temp_coeff_pres_sens * dT) >> 7);
+			_SENS -= SENSi;
 		}
 
-		float temperature = TEMP / 100.0f;
+		float temperature = ((float)TEMP - Ti) / 100.0f;
 		_px4_barometer.set_temperature(temperature);
 
 	} else {
-		/* pressure calculation, result in Pa */
-		int32_t P = (((int64_t)(raw * _SENS) >> 21) - _OFF) >> 13;
 
-		float pressure = P / 10.0f;		/* convert to millibar */
+		float pressure;
+
+		/* pressure calculation, result in mBar */
+		if (_ms5837_type == MS5837_30BA) {
+
+			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 13;
+		 	pressure = (float)P / 10.0f;
+
+		} else { /* (_ms5837_type == MS5837_02BA) */
+
+			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 13;
+		 	pressure = (float)P / 100.0f;
+		}
 
 		_px4_barometer.update(timestamp_sample, pressure);
 	}
@@ -431,58 +455,19 @@ void MS5837::print_status()
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 
-	printf("device:         %s\n", "ms5837");
-}
+	if (_ms5837_type == MS5837_30BA) {
 
-bool MS5837::crc4(uint16_t *n_prom)
-{
-	int16_t cnt;
-	uint16_t n_rem;
-	uint16_t crc_read;
-	uint8_t n_bit;
+		PX4_INFO("device:  %s",  "0: MS5837_30BA");
 
-	n_rem = 0x00;
+	} else {
 
-	/* save the read in CRC */
-	crc_read = (n_prom[0] & 0xf000) >> 12;
-	n_prom[0] = (0x0fff & n_prom[0]);
-	n_prom[7] = 0;
-
-	for (cnt = 0; cnt < 16; cnt++) {
-		/* uneven bytes */
-		if (cnt & 1) {
-			n_rem ^= (uint8_t)((n_prom[cnt >> 1]) & 0x00FF);
-		} else {
-			n_rem ^= (uint8_t)(n_prom[cnt >> 1] >> 8);
-		}
-
-		for (n_bit = 8; n_bit > 0; n_bit--) {
-			if (n_rem & 0x8000) {
-				n_rem = (n_rem << 1) ^ 0x3000;
-			} else {
-				n_rem = (n_rem << 1);
-			}
-		}
+		PX4_INFO("device:  %s",  "1: MS5837_02BA");
 	}
-
-
-	/* final 4 bit remainder is CRC value */
-	n_rem = (0x000F & (n_rem >> 12));
-
-	/* Put the CRC back in the PROM data */
-	n_prom[0] |= (crc_read << 12) ;
-
-	/* return true if CRCs match */
-	return (crc_read == n_rem);
 }
 
 
-int MS5837::read(unsigned offset, void *data, unsigned count)
+int MS5837::read(unsigned offset, uint8_t *data, unsigned count)
 {
-	union _cvt {
-		uint8_t	b[4];
-		uint32_t w;
-	} *cvt = (_cvt *)data;
 	uint8_t buf[3];
 
 	/* read the most recent measurement */
@@ -491,10 +476,10 @@ int MS5837::read(unsigned offset, void *data, unsigned count)
 
 	if (ret == PX4_OK) {
 		/* fetch the raw value */
-		cvt->b[0] = buf[2];
-		cvt->b[1] = buf[1];
-		cvt->b[2] = buf[0];
-		cvt->b[3] = 0;
+		data[0] = buf[2];
+		data[1] = buf[1];
+		data[2] = buf[0];
+		data[3] = 0;
 	}
 
 	return ret;

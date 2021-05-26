@@ -42,13 +42,14 @@ void MS5837::print_usage()
 	PRINT_MODULE_USAGE_SUBCATEGORY("baro");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(true, false);
+	PRINT_MODULE_USAGE_PARAM_STRING('T', "0: MS5837_30BA", "0 for MS5837_30BA | 1 for MS5837_02BA", "Device type", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 }
 
 I2CSPIDriverBase *MS5837::instantiate(const BusCLIArguments &cli, const BusInstanceIterator &iterator,
 				      int runtime_instance)
 {
-	MS5837 *dev = new MS5837(iterator.configuredBusOption(), iterator.bus(), cli.bus_frequency);
+	MS5837 *dev = new MS5837(iterator.configuredBusOption(), iterator.bus(), cli.bus_frequency, (MS5837_TYPE)cli.type);
 
 	if (dev == nullptr) {
 		return nullptr;
@@ -67,6 +68,24 @@ extern "C" int ms5837_main(int argc, char *argv[])
 	using ThisDriver = MS5837;
 	BusCLIArguments cli{true, false};
 	cli.default_i2c_frequency = 400000;
+	cli.type = MS5837_30BA;
+	int ch;
+
+	while ((ch = cli.getopt(argc, argv, "T:")) != EOF) {
+		switch (ch) {
+			case 'T': {
+				int val = atoi(cli.optarg());
+
+				if (val == 0) {
+					cli.type = MS5837_30BA;
+
+				} else if (val == 1) {
+					cli.type = MS5837_02BA;
+				}
+			}
+			break;
+		}
+	}
 
 	const char *verb = cli.parseDefaultArguments(argc, argv);
 

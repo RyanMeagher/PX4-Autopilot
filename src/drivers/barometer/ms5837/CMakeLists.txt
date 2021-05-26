@@ -37,7 +37,7 @@ px4_add_module(
 	COMPILE_FLAGS
 		-Wno-cast-align # TODO: fix and enable
 	SRCS
-		ms5837.cpp
+		MS5837.cpp
 		ms5837_main.cpp
 		MS5837.hpp
 	DEPENDS

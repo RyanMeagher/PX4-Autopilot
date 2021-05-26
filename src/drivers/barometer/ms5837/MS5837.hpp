@@ -38,6 +38,12 @@
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/i2c_spi_buses.h>
 
+enum MS5837_TYPE {
+	MS5837_30BA = 0,
+	MS5837_02BA,
+};
+
+
 #pragma pack(push,1)
 
 /**
@@ -65,7 +71,7 @@ typedef union prom_u {
 class MS5837 : public device::I2C, public I2CSPIDriver<MS5837>
 {
 public:
-	MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency);
+	MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency, MS5837_TYPE ms5837_type);
 	~MS5837() override;
 
 	static I2CSPIDriverBase *instantiate(const BusCLIArguments &cli, const BusInstanceIterator &iterator,
@@ -87,15 +93,14 @@ protected:
 	int collect();
 
 	int read_prom();
-	int read(unsigned offset, void *data, unsigned count);
+	int read(unsigned offset, uint8_t *data, unsigned count);
 	int measure(unsigned addr);
-
-	int register_read(uint8_t reg, void *data, unsigned count = 1);
-	int register_write(uint8_t reg, uint8_t data);
 
 	bool crc4(uint16_t *n_prom);
 
 	PX4Barometer		_px4_barometer;
+
+	enum MS5837_TYPE 	_ms5837_type;
 
 	prom_u			_prom;
 
