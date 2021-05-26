@@ -102,6 +102,7 @@ MS5837::~MS5837()
 int MS5837::init()
 {
 	int ret = I2C::init();
+
 	if (ret != PX4_OK) {
 		PX4_ERR("I2C init failed MS5837");
 		return PX4_ERROR;
@@ -430,12 +431,12 @@ int MS5837::collect()
 		if (_ms5837_type == MS5837_30BA) {
 
 			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 13;
-		 	pressure = (float)P / 10.0f;
+			pressure = (float)P / 10.0f;
 
 		} else { /* (_ms5837_type == MS5837_02BA) */
 
 			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 13;
-		 	pressure = (float)P / 100.0f;
+			pressure = (float)P / 100.0f;
 		}
 
 		_px4_barometer.update(timestamp_sample, pressure);

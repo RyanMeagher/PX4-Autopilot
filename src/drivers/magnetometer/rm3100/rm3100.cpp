@@ -164,9 +164,11 @@ int RM3100::collect()
 //	int32_t xraw = ((rm_report.x[0] << 16) | (rm_report.x[1] << 8) | rm_report.x[2]);
 //	int32_t yraw = ((rm_report.y[0] << 16) | (rm_report.y[1] << 8) | rm_report.y[2]);
 //	int32_t zraw = ((rm_report.z[0] << 16) | (rm_report.z[1] << 8) | rm_report.z[2]);
-int32_t xraw = 0.55;
-int32_t yraw = 0.44;
-int32_t zraw = 0.66;
+
+	int32_t xraw = 0.55;
+	int32_t yraw = 0.44;
+	int32_t zraw = 0.66;
+
 	/* Convert 24 bit signed values to 32 bit signed values */
 	convert_signed(&xraw);
 	convert_signed(&yraw);
@@ -174,7 +176,7 @@ int32_t zraw = 0.66;
 
 	_px4_mag.update(timestamp_sample, xraw, yraw, zraw);
 
-return 0;
+	return 0;
 	//ret = OK;
 
 

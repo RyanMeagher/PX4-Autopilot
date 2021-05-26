@@ -81,6 +81,7 @@ bool ManualControl::wantsOverride(const vehicle_control_mode_s &vehicle_control_
 		//const bool throttle_moved =
 		//	(fabsf(_manual_control_setpoint.z - _last_manual_control_setpoint.z) * 2.f > minimum_stick_change);
 		const bool use_throttle = !(_param_rc_override.get() & OverrideBits::OVERRIDE_IGNORE_THROTTLE_BIT);
+
 		if (rpy_moved || (use_throttle && throttle_moved)) {
 			return true;
 		}

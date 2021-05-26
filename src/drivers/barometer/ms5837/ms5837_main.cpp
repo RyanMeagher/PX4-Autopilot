@@ -73,7 +73,7 @@ extern "C" int ms5837_main(int argc, char *argv[])
 
 	while ((ch = cli.getopt(argc, argv, "T:")) != EOF) {
 		switch (ch) {
-			case 'T': {
+		case 'T': {
 				int val = atoi(cli.optarg());
 
 				if (val == 0) {
