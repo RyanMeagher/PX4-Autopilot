@@ -93,7 +93,7 @@ protected:
 	int collect();
 
 	int read_prom();
-	int read(unsigned offset, uint8_t *data, unsigned count);
+	int read_raw(uint32_t *data);
 	int measure(unsigned addr);
 
 	bool crc4(uint16_t *n_prom);
@@ -114,4 +114,10 @@ protected:
 	perf_counter_t		_sample_perf;
 	perf_counter_t		_measure_perf;
 	perf_counter_t		_comms_errors;
+
+	float temperature;
+	float cal_pressure;
+	float pressure;
+	float depth;
+	float altitude;
 };

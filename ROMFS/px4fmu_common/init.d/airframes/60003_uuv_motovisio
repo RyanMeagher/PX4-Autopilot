@@ -37,9 +37,6 @@ param set-default CBRK_SUPPLY_CHK 894281
 # Use joystick
 param set-default COM_RC_IN_MODE 1
 
-# Disable warning for SD card not present
-param set-default COM_ARM_SDCARD 0
-
 param set-default COM_PREARM_MODE 0
 
 param set-default MAV_1_CONFIG 102
@@ -52,6 +49,7 @@ param set-default PWM_MAIN_DISARM 1500
 
 set MAV_TYPE 12
 set PWM_OUT 123456
+#set PWM_OUT 1234
 # set MIXER IO_pass
 set MIXER vectored3dof
 

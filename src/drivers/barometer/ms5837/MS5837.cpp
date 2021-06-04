@@ -47,6 +47,7 @@
  * MS5837 internal constants and data structures
  */
 #define ADDR_RESET_CMD				0x1E	/* write to this address to reset chip */
+#define ADDR_CMD_ADC_READ			0x00	/* write to this address to read the ADC results */
 #define ADDR_CMD_CONVERT_D1_OSR256		0x40	/* write to this address to start pressure conversion */
 #define ADDR_CMD_CONVERT_D1_OSR512		0x42	/* write to this address to start pressure conversion */
 #define ADDR_CMD_CONVERT_D1_OSR1024		0x44	/* write to this address to start pressure conversion */
@@ -77,9 +78,6 @@
 #define MS5837_MEASUREMENT_RATIO	3	/* pressure measurements per temperature measurement */
 
 
-/* helper macro for handling report buffer indices */
-#define INCREMENT(_x, _lim)	do { __typeof__(_x) _tmp = _x+1; if (_tmp >= _lim) _tmp = 0; _x = _tmp; } while(0)
-
 MS5837::MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency, MS5837_TYPE ms5837_type):
 	I2C(DRV_BARO_DEVTYPE_MS5837, MODULE_NAME, bus, MS5837_ADDRESS, bus_frequency),
 	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
@@ -103,61 +101,29 @@ int MS5837::init()
 {
 	int ret = I2C::init();
 
-	if (ret != PX4_OK) {
+	if (PX4_OK != ret) {
 		PX4_ERR("I2C init failed MS5837");
 		return PX4_ERROR;
 	}
 
-	/* do a first measurement cycle to populate reports with valid data */
-	_measure_phase = 0;
-
-	/* do temperature first */
-	if (PX4_OK != measure()) {
-		return -EIO;
-	}
-
-	px4_usleep(MS5837_CONVERSION_INTERVAL);
-
-	if (PX4_OK != collect()) {
-		return -EIO;
-	}
-
-	/* now do a pressure measurement */
-	if (PX4_OK != measure()) {
-		return -EIO;
-	}
-
-	px4_usleep(MS5837_CONVERSION_INTERVAL);
-
-	if (PX4_OK != collect()) {
-		return -EIO;
-	}
-
 	start();
 
-	return ret;
+	return PX4_OK;
 }
 
 int MS5837::probe()
 {
-	_retries = 10;
-
 	/* send reset command */
 	if (PX4_OK != reset()) {
 		return -EIO;
 	}
 
 	/* read PROM */
-	if (PX4_OK == read_prom()) {
-		/*
-		 * Disable retries; we may enable them selectively in some cases,
-		 * but the device gets confused if we retry some of the commands.
-		 */
-		_retries = 0;
-		return PX4_OK;
+	if (PX4_OK != read_prom()) {
+		return -EIO;
 	}
 
-	return -EIO;
+	return PX4_OK;
 }
 
 int MS5837::read_prom()
@@ -165,11 +131,7 @@ int MS5837::read_prom()
 	bool all_zeros = true;
 	uint8_t buf[2];
 
-	/*
-	 * Wait for PROM contents to be in the device (2.8 ms) in the case we are
-	 * called immediately after reset.
-	 */
-	px4_usleep(3000);
+	_retries = 10;
 
 	/* Read and convert PROM words (7 words per datasheet) */
 	for (int i = 0; i < 7; i++) {
@@ -228,7 +190,6 @@ bool MS5837::crc4(uint16_t *n_prom)
 		}
 	}
 
-
 	/* final 4 bit remainder is CRC value */
 	n_rem = (0x000F & (n_rem >> 12));
 
@@ -238,7 +199,6 @@ bool MS5837::crc4(uint16_t *n_prom)
 	/* return true if CRCs match */
 	return (crc_read == n_rem);
 }
-
 
 void MS5837::start()
 {
@@ -252,13 +212,11 @@ void MS5837::start()
 
 int MS5837::reset()
 {
-	unsigned prev_retries = _retries;
 	uint8_t	cmd = ADDR_RESET_CMD;
 	int ret;
 
 	_retries = 10;
 	ret = transfer(&cmd, 1, nullptr, 0);
-	_retries = prev_retries;
 
 	return ret;
 }
@@ -274,24 +232,10 @@ void MS5837::RunImpl()
 		ret = collect();
 
 		if (ret != PX4_OK) {
-			// TODO is this true for the MS5837??
-			if (ret == -6) {
-				/*
-				 * The ms5837 seems to regularly fail to respond to
-				 * its address; this happens often enough that we'd rather not
-				 * spam the console with a message for this.
-				 */
-			} else {
-				//DEVICE_LOG("collection error %d", ret);
-			}
-
 			/* issue a reset command to the sensor */
 			reset();
-			/* reset the collection state machine and try again - we need
-			 * to wait 2.8 ms after issuing the sensor reset command
-			 * according to the MS5611 datasheet
-			 */
-			ScheduleDelayed(2800);
+			/* reset the collection state machine and try again */
+			start();
 			return;
 		}
 
@@ -316,6 +260,19 @@ void MS5837::RunImpl()
 	/* schedule a fresh cycle call when the measurement is done */
 	ScheduleDelayed(MS5837_CONVERSION_INTERVAL);
 }
+
+int MS5837::measure(unsigned addr)
+{
+	/*
+	 * Disable retries on this command; we can't know whether failure
+	 * means the device did or did not see the command.
+	 */
+	_retries = 0;
+
+	uint8_t cmd = addr;
+	return transfer(&cmd, 1, nullptr, 0);
+}
+
 
 int MS5837::measure()
 {
@@ -344,7 +301,10 @@ int MS5837::measure()
 
 int MS5837::collect()
 {
-	uint32_t raw;
+	/* TODO put cal in qgroundcontrol parameter */
+	static bool first = true;
+
+	uint32_t raw = 0;
 	int32_t dT, TEMP;
 	int64_t P, Ti = 0, OFFi = 0, SENSi = 0;
 
@@ -353,7 +313,7 @@ int MS5837::collect()
 
 	/* read the most recent measurement - read offset/size are hardcoded in the interface */
 	const hrt_abstime timestamp_sample = hrt_absolute_time();
-	int ret = read(0, (uint8_t *)&raw, 0);
+	int ret = read_raw(&raw);
 
 	if (ret < 0) {
 		perf_count(_comms_errors);
@@ -420,12 +380,10 @@ int MS5837::collect()
 			_SENS -= SENSi;
 		}
 
-		float temperature = ((float)TEMP - Ti) / 100.0f;
+		temperature = ((float)TEMP - Ti) / 100.0f;
 		_px4_barometer.set_temperature(temperature);
 
 	} else {
-
-		float pressure;
 
 		/* pressure calculation, result in mBar */
 		if (_ms5837_type == MS5837_30BA) {
@@ -435,15 +393,23 @@ int MS5837::collect()
 
 		} else { /* (_ms5837_type == MS5837_02BA) */
 
-			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 13;
+			P = ((((int64_t)raw * _SENS) >> 21) - _OFF) >> 15;
 			pressure = (float)P / 100.0f;
 		}
+
+		if (first) {
+			cal_pressure = pressure;
+			first = false;
+		}
+
+		depth = (pressure - cal_pressure) * 100 / (997.0f * 9.80665f);
+		altitude = (1.0f - (float)pow((pressure/1013.25f), 0.190284f)) * 145366.45f * 0.3048f;
 
 		_px4_barometer.update(timestamp_sample, pressure);
 	}
 
 	/* update the measurement state machine */
-	INCREMENT(_measure_phase, MS5837_MEASUREMENT_RATIO + 1);
+	_measure_phase = (_measure_phase + 1) % (MS5837_MEASUREMENT_RATIO + 1);
 
 	perf_end(_sample_perf);
 
@@ -464,36 +430,28 @@ void MS5837::print_status()
 
 		PX4_INFO("device:  %s",  "1: MS5837_02BA");
 	}
+
+	PX4_INFO("Temperature = %f C", (double)temperature);
+	PX4_INFO("Pressure = %f mbar", (double)(pressure - cal_pressure));
+	PX4_INFO("Depth = %f m", (double)depth);
+	PX4_INFO("Altitude = %f m above mean sea level", (double)altitude);
 }
 
-
-int MS5837::read(unsigned offset, uint8_t *data, unsigned count)
+int MS5837::read_raw(uint32_t *data)
 {
 	uint8_t buf[3];
 
 	/* read the most recent measurement */
-	uint8_t cmd = 0;
+	_retries = 0;
+	uint8_t cmd = ADDR_CMD_ADC_READ;
 	int ret = transfer(&cmd, 1, &buf[0], 3);
 
 	if (ret == PX4_OK) {
 		/* fetch the raw value */
-		data[0] = buf[2];
-		data[1] = buf[1];
-		data[2] = buf[0];
-		data[3] = 0;
+
+		*data = (buf[0] << 16) | (buf[1] << 8) | buf[2];
 	}
 
 	return ret;
 }
 
-int MS5837::measure(unsigned addr)
-{
-	/*
-	 * Disable retries on this command; we can't know whether failure
-	 * means the device did or did not see the command.
-	 */
-	_retries = 0;
-
-	uint8_t cmd = addr;
-	return transfer(&cmd, 1, nullptr, 0);
-}
