@@ -63,7 +63,7 @@ rtps:
     id: 29
   - msg: input_rc
     id: 30
-    send: true
+    #send: true
   - msg: iridiumsbd_status
     id: 31
   - msg: irlock_report
@@ -130,7 +130,7 @@ rtps:
     id: 60
   - msg: satellite_info
     id: 61
-    send: true
+    #send: true
   - msg: sensor_accel
     id: 62
   - msg: sensor_baro
@@ -166,11 +166,11 @@ rtps:
   - msg: timesync
     id: 78
     receive: true
-    send: true
+    #send: true
   - msg: trajectory_waypoint
     id: 79
     receive: true
-    send: true
+    #send: true
   - msg: transponder_report
     id: 80
   - msg: tune_control
@@ -187,7 +187,7 @@ rtps:
     id: 86
   - msg: vehicle_attitude
     id: 87
-    send: true
+    #send: true
   - msg: vehicle_attitude_setpoint
     id: 88
   - msg: vehicle_command
@@ -199,7 +199,7 @@ rtps:
     id: 91
   - msg: vehicle_control_mode
     id: 92
-    send: true
+    #send: true
   - msg: vehicle_global_position
     id: 93
   - msg: vehicle_gps_position
@@ -208,7 +208,7 @@ rtps:
     id: 95
   - msg: vehicle_local_position
     id: 96
-    send: true
+    #send: true
   - msg: vehicle_local_position_setpoint
     id: 97
     receive: true
@@ -216,14 +216,14 @@ rtps:
     id: 98
   - msg: vehicle_odometry
     id: 99
-    send: true
+    #send: true
   - msg: vehicle_rates_setpoint
     id: 100
   - msg: vehicle_roi
     id: 101
   - msg: vehicle_status
     id: 102
-    send: true
+    #send: true
   - msg: vehicle_status_flags
     id: 103
   - msg: vehicle_trajectory_waypoint
@@ -235,7 +235,7 @@ rtps:
     id: 106
   - msg: collision_constraints
     id: 107
-    send: true
+    #send: true
   - msg: orbit_status
     id: 108
   - msg: power_monitor
@@ -246,7 +246,7 @@ rtps:
     id: 111
   - msg: vehicle_angular_velocity
     id: 112
-    send: true
+    #send: true
   - msg: vehicle_acceleration
     id: 113
   - msg: airspeed_validated
@@ -387,7 +387,7 @@ rtps:
   - msg: vehicle_trajectory_waypoint_desired
     id: 183
     alias: vehicle_trajectory_waypoint
-    send: true
+    #send: true
   - msg: obstacle_distance_fused
     id: 184
     alias: obstacle_distance
