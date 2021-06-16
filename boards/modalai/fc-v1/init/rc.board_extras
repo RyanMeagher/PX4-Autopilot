@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# ModalAI FC-v1 specific board MAVLink startup script.
+#------------------------------------------------------------------------------
+
+micrortps_client start -t UART -d /dev/ttyS6 -b 921600 -v
