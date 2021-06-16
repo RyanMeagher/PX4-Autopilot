@@ -286,6 +286,7 @@ rtps:
     id: 130
   - msg: orb_test_large
     id: 131
+    send: true
   - msg: yaw_estimator_status
     id: 132
   - msg: sensor_preflight_mag
