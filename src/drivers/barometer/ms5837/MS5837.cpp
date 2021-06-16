@@ -432,7 +432,7 @@ void MS5837::print_status()
 	}
 
 	PX4_INFO("Temperature = %f C", (double)temperature);
-	PX4_INFO("Pressure = %f mbar", (double)(pressure - cal_pressure));
+	PX4_INFO("Pressure = %f mbar", (double)(pressure));
 	PX4_INFO("Depth = %f m", (double)depth);
 	PX4_INFO("Altitude = %f m above mean sea level", (double)altitude);
 }
