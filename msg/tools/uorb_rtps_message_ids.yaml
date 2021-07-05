@@ -23,16 +23,16 @@ rtps:
     id: 11
   - msg: debug_array
     id: 12
-    receive: true
+    #receive: true
   - msg: debug_key_value
     id: 13
-    receive: true
+    #receive: true
   - msg: debug_value
     id: 14
-    receive: true
+    #receive: true
   - msg: debug_vect
     id: 15
-    receive: true
+    #receive: true
   - msg: differential_pressure
     id: 16
   - msg: distance_sensor
@@ -63,7 +63,7 @@ rtps:
     id: 29
   - msg: input_rc
     id: 30
-    send: true
+    ##send: true
   - msg: iridiumsbd_status
     id: 31
   - msg: irlock_report
@@ -92,10 +92,10 @@ rtps:
     id: 43
   - msg: offboard_control_mode
     id: 44
-    receive: true
+    #receive: true
   - msg: optical_flow
     id: 45
-    receive: true
+    #receive: true
   - msg: parameter_update
     id: 46
   - msg: ping
@@ -106,10 +106,10 @@ rtps:
     id: 49
   - msg: position_setpoint
     id: 50
-    receive: true
+    #receive: true
   - msg: position_setpoint_triplet
     id: 51
-    receive: true
+    #receive: true
   - msg: power_button_state
     id: 52
   - msg: pwm_input
@@ -130,7 +130,7 @@ rtps:
     id: 60
   - msg: satellite_info
     id: 61
-    send: true
+    ##send: true
   - msg: sensor_accel
     id: 62
   - msg: sensor_baro
@@ -160,17 +160,17 @@ rtps:
     id: 75
   - msg: telemetry_status
     id: 76
-    receive: true
+    #receive: true
   - msg: test_motor
     id: 77
   - msg: timesync
     id: 78
-    receive: true
-    send: true
+    #receive: true
+    ##send: true
   - msg: trajectory_waypoint
     id: 79
-    receive: true
-    send: true
+    #receive: true
+    ##send: true
   - msg: transponder_report
     id: 80
   - msg: tune_control
@@ -187,19 +187,19 @@ rtps:
     id: 86
   - msg: vehicle_attitude
     id: 87
-    send: true
+    ##send: true
   - msg: vehicle_attitude_setpoint
     id: 88
   - msg: vehicle_command
     id: 89
-    receive: true
+    #receive: true
   - msg: vehicle_command_ack
     id: 90
   - msg: vehicle_constraints
     id: 91
   - msg: vehicle_control_mode
     id: 92
-    send: true
+    ##send: true
   - msg: vehicle_global_position
     id: 93
   - msg: vehicle_gps_position
@@ -208,34 +208,34 @@ rtps:
     id: 95
   - msg: vehicle_local_position
     id: 96
-    send: true
+    ##send: true
   - msg: vehicle_local_position_setpoint
     id: 97
-    receive: true
+    #receive: true
   - msg: vehicle_magnetometer
     id: 98
   - msg: vehicle_odometry
     id: 99
-    send: true
+    ##send: true
   - msg: vehicle_rates_setpoint
     id: 100
   - msg: vehicle_roi
     id: 101
   - msg: vehicle_status
     id: 102
-    send: true
+    ##send: true
   - msg: vehicle_status_flags
     id: 103
   - msg: vehicle_trajectory_waypoint
     id: 104
-    receive: true
+    #receive: true
   - msg: vtol_vehicle_status
     id: 105
   - msg: wind
     id: 106
   - msg: collision_constraints
     id: 107
-    send: true
+    ##send: true
   - msg: orbit_status
     id: 108
   - msg: power_monitor
@@ -246,14 +246,14 @@ rtps:
     id: 111
   - msg: vehicle_angular_velocity
     id: 112
-    send: true
+    ##send: true
   - msg: vehicle_acceleration
     id: 113
   - msg: airspeed_validated
     id: 115
   - msg: onboard_computer_status
     id: 116
-    receive: true
+    #receive: true
   - msg: cellular_status
     id: 117
   - msg: sensor_accel_fifo
@@ -274,10 +274,10 @@ rtps:
     id: 125
   - msg: trajectory_bezier
     id: 126
-    receive: true
+    #receive: true
   - msg: vehicle_trajectory_bezier
     id: 127
-    receive: true
+    #receive: true
   - msg: timesync_status
     id: 128
   - msg: orb_test
@@ -379,15 +379,15 @@ rtps:
   - msg: vehicle_mocap_odometry
     alias: vehicle_odometry
     id: 181
-    receive: true
+    #receive: true
   - msg: vehicle_visual_odometry
     id: 182
     alias: vehicle_odometry
-    receive: true
+    #receive: true
   - msg: vehicle_trajectory_waypoint_desired
     id: 183
     alias: vehicle_trajectory_waypoint
-    send: true
+    ##send: true
   - msg: obstacle_distance_fused
     id: 184
     alias: obstacle_distance
@@ -397,7 +397,7 @@ rtps:
   - msg: trajectory_setpoint
     id: 186
     alias: vehicle_local_position_setpoint
-    receive: true
+    #receive: true
   - msg: camera_trigger_secondary
     id: 187
     alias: camera_trigger
@@ -416,6 +416,7 @@ rtps:
   - msg: orb_multitest
     id: 192
     alias: orb_test
+    #send: true
   - msg: orb_test_medium_multi
     id: 193
     alias: orb_test_medium

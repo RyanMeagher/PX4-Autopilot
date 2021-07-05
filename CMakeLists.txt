@@ -134,7 +134,7 @@ define_property(GLOBAL PROPERTY PX4_MODULE_PATHS
 # configuration
 #
 
-set(CONFIG "px4_sitl_default" CACHE STRING "desired configuration")
+set(CONFIG "modalai_fc-v1" CACHE STRING "desired configuration")
 
 include(px4_add_module)
 set(config_module_list)
