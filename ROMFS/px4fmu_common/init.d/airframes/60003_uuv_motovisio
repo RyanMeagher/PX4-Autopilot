@@ -52,4 +52,3 @@ set PWM_OUT 123456
 #set PWM_OUT 1234
 # set MIXER IO_pass
 set MIXER vectored3dof
-

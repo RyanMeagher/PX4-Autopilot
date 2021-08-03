@@ -125,12 +125,20 @@ public:
 private:
 
 	/**
-	 * Perform simpler linear scaling.
+	 * Perform simpler linearization of output according to pwm to force graph of moto
 	 *
-	 * @param scaler		The scaler configuration.
 	 * @param input			The value to be scaled.
-	 * @return			The scaled value.
+	 * @return			    The scaled value.
 	 */
+	static float            linearize_sticks( float input);
+	/**
+     * Perform simpler linear scaling.
+     *
+     * @param scaler		The scaler configuration.
+     * @param input			The value to be scaled.
+     * @return			The scaled value.
+     */
+
 	static float			scale(const mixer_scaler_s &scaler, float input);
 
 	/**

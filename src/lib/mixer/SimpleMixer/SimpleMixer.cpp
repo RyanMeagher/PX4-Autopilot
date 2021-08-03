@@ -347,17 +347,24 @@ SimpleMixer::check()
 
 	return 0;
 }
+float
+SimpleMixer::linearize_sticks( float input){
+    if(input < 0.05f && input > -0.05f) return input;
+    else if( input > 0.0f) return (((input * 343.72f) + 1574.0f) - 1500.0f) / 400.0f; //positive force
+    else  return (((input * 356.13f) + 1453.6f) - 1500.0f) / 400.0f;
+};
 
 float
 SimpleMixer::scale(const mixer_scaler_s &scaler, float input)
 {
 	float output;
 
+
 	if (input < 0.0f) {
-		output = (input * scaler.negative_scale) + scaler.offset;
+		output = (linearize_sticks(input) * scaler.negative_scale) + scaler.offset;
 
 	} else {
-		output = (input * scaler.positive_scale) + scaler.offset;
+		output = (linearize_sticks(input) * scaler.positive_scale) + scaler.offset;
 	}
 
 	return math::constrain(output, scaler.min_output, scaler.max_output);

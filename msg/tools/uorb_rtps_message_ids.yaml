@@ -199,7 +199,7 @@ rtps:
     id: 91
   - msg: vehicle_control_mode
     id: 92
-    send: true
+    #send: true
   - msg: vehicle_global_position
     id: 93
   - msg: vehicle_gps_position
@@ -240,6 +240,7 @@ rtps:
     id: 108
   - msg: power_monitor
     id: 109
+    send: true
   - msg: landing_gear
     id: 110
   - msg: wheel_encoders
