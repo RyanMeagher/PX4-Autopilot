@@ -20,8 +20,11 @@
 
 . ${R}etc/init.d/rc.uuv_defaults
 
-#Set data link loss failsafe mode (0: disabled)
-param set-default NAV_DLL_ACT 0
+#Set data link loss failsafe mode (6: lockdown)
+param set-default NAV_DLL_ACT 6
+
+#Set RC loss failsafe mode (6: lockdown)
+param set-default NAV_RCL_ACT 6
 
 # disable circuit breaker for airspeed sensor
 param set-default CBRK_AIRSPD_CHK 162128
