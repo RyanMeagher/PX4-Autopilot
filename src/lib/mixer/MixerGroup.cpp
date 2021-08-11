@@ -143,11 +143,12 @@ MixerGroup::get_multirotor_count()
 		unsigned rotor_count = mixer->get_multirotor_count();
 
 		if (rotor_count > 0) {
-			return rotor_count;
+		    return 6;
+			//return rotor_count;
 		}
 	}
 
-	return 0;
+	return 6;
 }
 
 uint16_t

@@ -40,6 +40,7 @@ param set-default CBRK_AIRSPD_CHK 162128
 # companion computer is connected via USB permanently
 param set-default CBRK_USB_CHK 197848
 
+#set this to 0 to enable safety_button
 param set-default CBRK_IO_SAFETY 22027
 
 # Allow running off 5V supply for testing

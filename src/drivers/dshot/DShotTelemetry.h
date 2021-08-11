@@ -140,4 +140,9 @@ private:
 	// statistics
 	int _num_timeouts{0};
 	int _num_successful_responses{0};
+	int _voltage1 {0};
+	int _temp {0};
+	int _erpm {0};
+	int _motoridx{0};
+
 };

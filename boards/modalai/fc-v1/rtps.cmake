@@ -83,6 +83,7 @@ px4_add_board(
 		uuv_pos_control
 		vmount
 		vtol_att_control
+		uuv_depth_hold
 	SYSTEMCMDS
 		bl_update
 		dmesg
@@ -124,6 +125,7 @@ px4_add_board(
 		#px4_mavlink_debug # Tutorial code from http://dev.px4.io/en/debug/debug_values.html
 		#px4_simple_app # Tutorial code from http://dev.px4.io/en/apps/hello_sky.html
 		#rover_steering_control # Rover example app
-		#uuv_example_app
+		uuv_example_app
 		#work_item
+
 	)

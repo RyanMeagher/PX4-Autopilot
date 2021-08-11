@@ -227,7 +227,7 @@ public:
 	 */
 	virtual void			set_airmode(Airmode airmode) {};
 
-	virtual unsigned		get_multirotor_count()  { return 0; }
+	virtual unsigned		get_multirotor_count()  { return 6; }
 
 	virtual void 			set_dt_once(float dt) {}
 

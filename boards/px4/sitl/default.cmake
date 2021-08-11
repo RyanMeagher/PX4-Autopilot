@@ -60,6 +60,7 @@ px4_add_board(
 		uuv_pos_control
 		vmount
 		vtol_att_control
+		uuv_depth_hold
 	SYSTEMCMDS
 		#dumpfile
 		dyn

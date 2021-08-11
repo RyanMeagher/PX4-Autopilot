@@ -62,6 +62,10 @@ int DShotTelemetry::init(const char *uart_device)
 	_num_timeouts = 0;
 	_num_successful_responses = 0;
 	_current_motor_index_request = -1;
+	_temp=0;
+	_voltage1=0;
+	_erpm=0;
+	_motoridx=0;
 	return setBaudrate(DSHOT_TELEMETRY_UART_BAUDRATE);
 }
 
@@ -178,9 +182,13 @@ bool DShotTelemetry::decodeByte(uint8_t byte, bool &successful_decoding)
 			_latest_data.current = (_frame_buffer[3] << 8) | _frame_buffer[4];
 			_latest_data.consumption = (_frame_buffer[5]) << 8 | _frame_buffer[6];
 			_latest_data.erpm = (_frame_buffer[7] << 8) | _frame_buffer[8];
-			PX4_DEBUG("Motor %i: temp=%i, V=%i, cur=%i, consumpt=%i, rpm=%i", _current_motor_index_request,
+			PX4_INFO("Motor %i: temp=%i, V=%i, cur=%i, consumpt=%i, rpm=%i", _current_motor_index_request,
 				  _latest_data.temperature, _latest_data.voltage, _latest_data.current, _latest_data.consumption,
 				  _latest_data.erpm);
+			_temp=_latest_data.temperature;
+			_voltage1=_latest_data.voltage;
+			_erpm=_latest_data.erpm;
+			_motoridx=_current_motor_index_request;
 			++_num_successful_responses;
 			successful_decoding = true;
 		}
@@ -193,7 +201,8 @@ bool DShotTelemetry::decodeByte(uint8_t byte, bool &successful_decoding)
 
 void DShotTelemetry::printStatus() const
 {
-	PX4_INFO("Number of successful ESC frames: %i", _num_successful_responses);
+	PX4_INFO("foobar of successful ESC frames: %i, voltage: %i temp: %i erpm: %i motor#: %i motoridx: %i", _num_successful_responses, _voltage1, _temp, _erpm, _num_motors,_motoridx);
+
 	PX4_INFO("Number of timeouts: %i", _num_timeouts);
 }
 

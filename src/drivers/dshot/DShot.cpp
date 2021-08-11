@@ -353,11 +353,11 @@ void DShot::update_telemetry_num_motors()
 		return;
 	}
 
-	int motor_count = 0;
+	int motor_count = 6;
 
-	if (_mixing_output.mixers()) {
+/*	if (_mixing_output.mixers()) {
 		motor_count = _mixing_output.mixers()->get_multirotor_count();
-	}
+	}*/
 
 	_telemetry->handler.setNumMotors(motor_count);
 }

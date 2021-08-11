@@ -108,6 +108,9 @@ public:
 
 	void				groups_required(uint32_t &groups) override;
 
+	unsigned		get_multirotor_count() override { return 6; }
+
+
 	/**
 	 * Check that the mixer configuration as loaded is sensible.
 	 *
