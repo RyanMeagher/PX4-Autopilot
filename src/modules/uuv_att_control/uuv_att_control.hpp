@@ -121,7 +121,7 @@ private:
 	sensor_baro_s _sensor_baro {};
 
 	float desired_depth = 0;
-	float depth_scaling_factor = 0.15f;
+	float depth_scaling_factor = 10.0f;
 
 	perf_counter_t	_loop_perf; /**< loop performance counter */
 
@@ -155,5 +155,5 @@ private:
 				  const vehicle_angular_velocity_s &angular_velocity, const vehicle_rates_setpoint_s &rates_setpoint);
 	void constrain_actuator_commands(float roll_u, float pitch_u, float yaw_u,
 					 float thrust_x, float thrust_y, float thrust_z);
-	float DepthControl( float &desired_depth);
+	float depth_control( float &desired_depth);
 };

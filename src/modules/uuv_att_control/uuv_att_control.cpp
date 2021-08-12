@@ -219,7 +219,7 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &attitude
 	/* Geometric Controller END*/
 }
 
-float UUVAttitudeControl::DepthControl(float &set_depth){
+float UUVAttitudeControl::depth_control(float &set_depth){
 	    /* update the baro_sensor data*/
 	    _sensor_baro_sub.update(&_sensor_baro);
 	    float uuv_pitch_factor = 0.0f;
@@ -229,12 +229,12 @@ float UUVAttitudeControl::DepthControl(float &set_depth){
 	        set_depth = 0.0f;
 	        uuv_pitch_factor = 0.0f;
 	    }
-	    else if(diff <= -0.3f) uuv_pitch_factor = -1.0f;
-	    else if (diff >= -0.3f && diff <= -0.2f) uuv_pitch_factor = -0.5f;
-	    else if (diff >= -0.2f && diff <= -0.1f) uuv_pitch_factor = -0.2f;
-	    else if(diff >= 0.3f) uuv_pitch_factor = 1.0f;
-	    else if(diff <= 0.3f && diff >= 0.2f) uuv_pitch_factor = 0.5f;
-	    else if(diff <= 0.2f && diff >= 0.1f) uuv_pitch_factor = 0.2f;
+	    else if (diff >= 0.3f) uuv_pitch_factor = -1.0f;
+	    else if (diff < 0.3f && diff >= 0.2f) uuv_pitch_factor = -0.5f;
+	    else if (diff < 0.2f && diff >= 0.1f) uuv_pitch_factor = -0.2f;
+	    else if (diff <= -0.3f) uuv_pitch_factor = 1.0f;
+	    else if (diff > -0.3f && diff <= -0.2f) uuv_pitch_factor = 0.5f;
+	    else if (diff > -0.2f && diff <= -0.1f) uuv_pitch_factor = 0.2f;
 	    else uuv_pitch_factor = 0.0f;
 	    return uuv_pitch_factor ;
 	}
@@ -298,18 +298,25 @@ void UUVAttitudeControl::Run()
 	if (_manual_control_setpoint_sub.update(&_manual_control_setpoint)) {
 		// This should be copied even if not in manual mode. Otherwise, the poll(...) call will keep
 		// returning immediately and this loop will eat up resources.
-		if (_vcontrol_mode.flag_control_manual_enabled && !_vcontrol_mode.flag_control_rates_enabled) {
-			/* manual/direct control */
-			_manual_control_setpoint_sub.update(&_manual_control_setpoint);
+		/*altitude mode*/
+		if (_vcontrol_mode.flag_control_manual_enabled && _vcontrol_mode.flag_control_rates_enabled && _vcontrol_mode.flag_control_altitude_enabled){
+		    /*update desired depth based on joystick input*/
+		    desired_depth -= _manual_control_setpoint.x / depth_scaling_factor ;
+		    float uuv_pitch_factor = depth_control(desired_depth);
 
-			/* This scales the desired depth adjustment via pitch joystick from [-1m:1m] by the scaling factor */
-			desired_depth -= _manual_control_setpoint.x / depth_scaling_factor ;
-
-			float uuv_pitch_factor = DepthControl(desired_depth);
-
-			constrain_actuator_commands(_manual_control_setpoint.y, uuv_pitch_factor,
+		    constrain_actuator_commands(_manual_control_setpoint.y, uuv_pitch_factor,
                                         _manual_control_setpoint.r,
                                         _manual_control_setpoint.z, 0.f, 0.f);
+		}
+		/*manual mode*/
+		else if (_vcontrol_mode.flag_control_manual_enabled && !_vcontrol_mode.flag_control_rates_enabled && !_vcontrol_mode.flag_control_altitude_enabled) {
+			/* manual/direct control */
+			constrain_actuator_commands(_manual_control_setpoint.y, -_manual_control_setpoint.x,
+                                        _manual_control_setpoint.r,
+                                        _manual_control_setpoint.z, 0.f, 0.f);
+			/*keep track */
+			_sensor_baro_sub.update(&_sensor_baro);
+			desired_depth = _sensor_baro.depth;
 		}
 
 	}
