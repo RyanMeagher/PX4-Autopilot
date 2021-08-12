@@ -281,37 +281,29 @@ void UUVAttitudeControl::Run()
 		if (_vcontrol_mode.flag_control_manual_enabled && !_vcontrol_mode.flag_control_rates_enabled) {
 			/* manual/direct control */
 			_manual_control_setpoint_sub.update(&_manual_control_setpoint);
+
+			/* update the baro_sensor data*/
 			_sensor_baro_sub.update(&_sensor_baro);
-			desired_depth -= _manual_control_setpoint.x / 10.0f ;
+			/* This scales the desired depth adjustment via pitch joystick from [-1m:1m] by the scaling factor */
+			desired_depth -= _manual_control_setpoint.x / depth_scaling_factor ;
+			float diff = desired_depth -_sensor_baro.depth;
+			float uuv_pitch_factor = 0.0f;
 
-			float diff = abs(desired_depth-_sensor_baro.depth);
-			if( (desired_depth > _sensor_baro.depth) && ( diff > 0.3)){
-			    constrain_actuator_commands(_manual_control_setpoint.y, -1.0f,
-                                            _manual_control_setpoint.r,
-                                            _manual_control_setpoint.z, 0.f, 0.f);
+			if (desitred_depth >= 0) {
+			    desired_depth = 0.0f;
+			    uuv_pitch_factor = 0.0f;
 			}
-			else if ( (desired_depth < _sensor_baro.depth) && (diff > 0.3) ){
-			    constrain_actuator_commands(_manual_control_setpoint.y, 1.0f,
-                                            _manual_control_setpoint.r,
-                                            _manual_control_setpoint.z, 0.f, 0.f);
-			}
-			else if ( (desired_depth > _sensor_baro.depth) && (diff < 0.3) && (diff > 0.1f) ){
-			    constrain_actuator_commands(_manual_control_setpoint.y, -0.25f,
-                                            _manual_control_setpoint.r,
-                                            _manual_control_setpoint.z, 0.f, 0.f);
-			}
-			else if ( (desired_depth < _sensor_baro.depth) && (diff < 0.3)  && (diff > 0.1f)){
-			    constrain_actuator_commands(_manual_control_setpoint.y, 0.25f,
-                                            _manual_control_setpoint.r,
-                                            _manual_control_setpoint.z, 0.f, 0.f);
-			}
-			else if (diff < 0.1){
-			    constrain_actuator_commands(_manual_control_setpoint.y, 0.0f,
-                                            _manual_control_setpoint.r,
-                                            _manual_control_setpoint.z, 0.f, 0.f);
-			}
+			else if(diff <= -0.3) uuv_pitch_factor = -1.0f;
+			else if (diff >= -0.3 && diff <= -0.2) uuv_pitch_factor = -0.5;
+			else if (diff >= -0.2 && diff <= -0.1)uuv_pitch_factor = -0.2;
+			else if(diff >= 0.3) uuv_pitch_factor = 1.0f;
+			else if(diff <= 0.3 && diff >= 0.2) uuv_pitch_factor = 0.5f;
+			else if(diff <= 0.2 && diff >= 0.1) uuv_pitch_factor = 0.2f;
+			else uuv_pitch_factor = 0.0f;
 
-
+			constrain_actuator_commands(_manual_control_setpoint.y, uuv_pitch_factor,
+                                        _manual_control_setpoint.r,
+                                        _manual_control_setpoint.z, 0.f, 0.f);
 		}
 
 	}

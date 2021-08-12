@@ -121,6 +121,7 @@ private:
 	sensor_baro_s _sensor_baro {};
 
 	float desired_depth = 0;
+	float depth_scaling_factor = 0.15f;
 
 	perf_counter_t	_loop_perf; /**< loop performance counter */
 
