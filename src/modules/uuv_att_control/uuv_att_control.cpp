@@ -219,6 +219,26 @@ void UUVAttitudeControl::control_attitude_geo(const vehicle_attitude_s &attitude
 	/* Geometric Controller END*/
 }
 
+float UUVAttitudeControl::DepthControl(float &set_depth){
+	    /* update the baro_sensor data*/
+	    _sensor_baro_sub.update(&_sensor_baro);
+	    float uuv_pitch_factor = 0.0f;
+	    float diff = set_depth -_sensor_baro.depth;
+        /*depth is expressed in positive units (pushing up on stick equates to -set_depth)*/
+	    if (set_depth <= 0.0f) {
+	        set_depth = 0.0f;
+	        uuv_pitch_factor = 0.0f;
+	    }
+	    else if(diff <= -0.3f) uuv_pitch_factor = -1.0f;
+	    else if (diff >= -0.3f && diff <= -0.2f) uuv_pitch_factor = -0.5f;
+	    else if (diff >= -0.2f && diff <= -0.1f) uuv_pitch_factor = -0.2f;
+	    else if(diff >= 0.3f) uuv_pitch_factor = 1.0f;
+	    else if(diff <= 0.3f && diff >= 0.2f) uuv_pitch_factor = 0.5f;
+	    else if(diff <= 0.2f && diff >= 0.1f) uuv_pitch_factor = 0.2f;
+	    else uuv_pitch_factor = 0.0f;
+	    return uuv_pitch_factor ;
+	}
+
 void UUVAttitudeControl::Run()
 {
 	if (should_exit()) {
@@ -282,24 +302,10 @@ void UUVAttitudeControl::Run()
 			/* manual/direct control */
 			_manual_control_setpoint_sub.update(&_manual_control_setpoint);
 
-			/* update the baro_sensor data*/
-			_sensor_baro_sub.update(&_sensor_baro);
 			/* This scales the desired depth adjustment via pitch joystick from [-1m:1m] by the scaling factor */
 			desired_depth -= _manual_control_setpoint.x / depth_scaling_factor ;
-			float diff = desired_depth -_sensor_baro.depth;
-			float uuv_pitch_factor = 0.0f;
 
-			if (desitred_depth >= 0) {
-			    desired_depth = 0.0f;
-			    uuv_pitch_factor = 0.0f;
-			}
-			else if(diff <= -0.3) uuv_pitch_factor = -1.0f;
-			else if (diff >= -0.3 && diff <= -0.2) uuv_pitch_factor = -0.5;
-			else if (diff >= -0.2 && diff <= -0.1)uuv_pitch_factor = -0.2;
-			else if(diff >= 0.3) uuv_pitch_factor = 1.0f;
-			else if(diff <= 0.3 && diff >= 0.2) uuv_pitch_factor = 0.5f;
-			else if(diff <= 0.2 && diff >= 0.1) uuv_pitch_factor = 0.2f;
-			else uuv_pitch_factor = 0.0f;
+			float uuv_pitch_factor = DepthControl(desired_depth);
 
 			constrain_actuator_commands(_manual_control_setpoint.y, uuv_pitch_factor,
                                         _manual_control_setpoint.r,
@@ -383,6 +389,8 @@ $ uuv_att_control stop
 
 	return 0;
 }
+
+
 
 int uuv_att_control_main(int argc, char *argv[])
 {
