@@ -229,14 +229,20 @@ float UUVAttitudeControl::depth_control(float &set_depth){
 	        set_depth = 0.0f;
 	        uuv_pitch_factor = 0.0f;
 	    }
-	    else if (diff >= 0.3f) uuv_pitch_factor = -1.0f;
-	    else if (diff < 0.3f && diff >= 0.2f) uuv_pitch_factor = -0.5f;
+	    /* thrust -Z direction */
+	    else if (diff >= 0.5f) uuv_pitch_factor = -1.0f;
+	    else if (diff < 0.5f && diff >= 0.4f) uuv_pitch_factor = -0.8f;
+	    else if (diff < 0.4f && diff >= 0.3f) uuv_pitch_factor = -0.6f;
+	    else if (diff < 0.3f && diff >= 0.2f) uuv_pitch_factor = -0.4f;
 	    else if (diff < 0.2f && diff >= 0.1f) uuv_pitch_factor = -0.2f;
-	    else if (diff <= -0.3f) uuv_pitch_factor = 1.0f;
-	    else if (diff > -0.3f && diff <= -0.2f) uuv_pitch_factor = 0.5f;
+	    /* thrust +Z direction*/
+	    else if (diff <= -0.5f) uuv_pitch_factor = 1.0f;
+	    else if (diff > -0.5f && diff <= -0.4f) uuv_pitch_factor = 0.8f;
+	    else if (diff > -0.4f && diff <= -0.3f) uuv_pitch_factor = 0.6f;
+	    else if (diff > -0.3f && diff <= -0.2f) uuv_pitch_factor = 0.4f;
 	    else if (diff > -0.2f && diff <= -0.1f) uuv_pitch_factor = 0.2f;
 	    else uuv_pitch_factor = 0.0f;
-	    return uuv_pitch_factor ;
+	    return uuv_pitch_factor;
 	}
 
 void UUVAttitudeControl::Run()

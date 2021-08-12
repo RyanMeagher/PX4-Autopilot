@@ -121,7 +121,7 @@ private:
 	sensor_baro_s _sensor_baro {};
 
 	float desired_depth = 0;
-	float depth_scaling_factor = 10.0f;
+	float depth_scaling_factor = 50.0f; //0.25 in 25Hz so can change the sub 6in every second
 
 	perf_counter_t	_loop_perf; /**< loop performance counter */
 
