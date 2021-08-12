@@ -280,9 +280,32 @@ void UUVAttitudeControl::Run()
 		// returning immediately and this loop will eat up resources.
 		if (_vcontrol_mode.flag_control_manual_enabled && !_vcontrol_mode.flag_control_rates_enabled) {
 			/* manual/direct control */
-			constrain_actuator_commands(_manual_control_setpoint.y, -_manual_control_setpoint.x,
-						    _manual_control_setpoint.r,
-						    _manual_control_setpoint.z, 0.f, 0.f);
+			_manual_control_setpoint_sub.update(&_manual_control_setpoint);
+			_sensor_baro_sub.update(&_sensor_baro);
+			desired_depth -= _manual_control_setpoint.x / 10.0f ;
+
+			if( (desired_depth > _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) > 0.2)){
+			    constrain_actuator_commands(_manual_control_setpoint.y, -1.0f,
+                                            _manual_control_setpoint.r,
+                                            _manual_control_setpoint.z, 0.f, 0.f);
+			}
+			else if ( (desired_depth < _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) > 0.2) ){
+			    constrain_actuator_commands(_manual_control_setpoint.y, 1.0f,
+                                            _manual_control_setpoint.r,
+                                            _manual_control_setpoint.z, 0.f, 0.f);
+			}
+			else if ( (desired_depth > _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) < 0.2) ){
+			    constrain_actuator_commands(_manual_control_setpoint.y, -0.25f,
+                                            _manual_control_setpoint.r,
+                                            _manual_control_setpoint.z, 0.f, 0.f);
+			}
+			else if ( (desired_depth < _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) < 0.2) ){
+			    constrain_actuator_commands(_manual_control_setpoint.y, 0.25f,
+                                            _manual_control_setpoint.r,
+                                            _manual_control_setpoint.z, 0.f, 0.f);
+			}
+
+
 		}
 
 	}

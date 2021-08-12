@@ -69,7 +69,9 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/sensor_baro.h>
 #include <uORB/uORB.h>
+
 
 using matrix::Eulerf;
 using matrix::Quatf;
@@ -107,6 +109,7 @@ private:
 	uORB::Subscription _angular_velocity_sub{ORB_ID(vehicle_angular_velocity)};	/**< vehicle angular velocity subscription */
 	uORB::Subscription _manual_control_setpoint_sub{ORB_ID(manual_control_setpoint)};	/**< notification of manual control updates */
 	uORB::Subscription _vcontrol_mode_sub{ORB_ID(vehicle_control_mode)};		/**< vehicle status subscription */
+    uORB::Subscription _sensor_baro_sub{ORB_ID(sensor_baro)};
 
 	uORB::SubscriptionCallbackWorkItem _vehicle_attitude_sub{this, ORB_ID(vehicle_attitude)};
 
@@ -115,6 +118,9 @@ private:
 	vehicle_attitude_setpoint_s _attitude_setpoint {}; /**< vehicle attitude setpoint */
 	vehicle_rates_setpoint_s _rates_setpoint {}; /**< vehicle bodyrates setpoint */
 	vehicle_control_mode_s _vcontrol_mode {}; /**< vehicle control mode */
+	sensor_baro_s _sensor_baro {};
+
+	float desired_depth = 0;
 
 	perf_counter_t	_loop_perf; /**< loop performance counter */
 
