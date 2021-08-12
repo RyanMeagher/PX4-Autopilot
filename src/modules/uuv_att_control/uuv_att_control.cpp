@@ -284,23 +284,29 @@ void UUVAttitudeControl::Run()
 			_sensor_baro_sub.update(&_sensor_baro);
 			desired_depth -= _manual_control_setpoint.x / 10.0f ;
 
-			if( (desired_depth > _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) > 0.2)){
+			float diff = abs(desired_depth-_sensor_baro.depth);
+			if( (desired_depth > _sensor_baro.depth) && ( diff > 0.3)){
 			    constrain_actuator_commands(_manual_control_setpoint.y, -1.0f,
                                             _manual_control_setpoint.r,
                                             _manual_control_setpoint.z, 0.f, 0.f);
 			}
-			else if ( (desired_depth < _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) > 0.2) ){
+			else if ( (desired_depth < _sensor_baro.depth) && (diff > 0.3) ){
 			    constrain_actuator_commands(_manual_control_setpoint.y, 1.0f,
                                             _manual_control_setpoint.r,
                                             _manual_control_setpoint.z, 0.f, 0.f);
 			}
-			else if ( (desired_depth > _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) < 0.2) ){
+			else if ( (desired_depth > _sensor_baro.depth) && (diff < 0.3) && (diff > 0.1f) ){
 			    constrain_actuator_commands(_manual_control_setpoint.y, -0.25f,
                                             _manual_control_setpoint.r,
                                             _manual_control_setpoint.z, 0.f, 0.f);
 			}
-			else if ( (desired_depth < _sensor_baro.depth) && (abs(desired_depth-_sensor_baro.depth) < 0.2) ){
+			else if ( (desired_depth < _sensor_baro.depth) && (diff < 0.3)  && (diff > 0.1f)){
 			    constrain_actuator_commands(_manual_control_setpoint.y, 0.25f,
+                                            _manual_control_setpoint.r,
+                                            _manual_control_setpoint.z, 0.f, 0.f);
+			}
+			else if (diff < 0.1){
+			    constrain_actuator_commands(_manual_control_setpoint.y, 0.0f,
                                             _manual_control_setpoint.r,
                                             _manual_control_setpoint.z, 0.f, 0.f);
 			}
