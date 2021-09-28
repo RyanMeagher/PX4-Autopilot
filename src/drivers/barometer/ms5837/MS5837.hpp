@@ -123,6 +123,5 @@ protected:
     float temperature;
     float cal_pressure;
     float pressure;
-    float depth;
     float altitude;
 };
