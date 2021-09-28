@@ -37,6 +37,7 @@
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/posix.h>
 
+
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_combined.h>
 
@@ -105,11 +106,15 @@ TemplateModule *TemplateModule::instantiate(int argc, char *argv[])
 		case 'f':
 			example_flag = true;
 			break;
+        case 'd':
+            _salinity
 
 		case '?':
 			error_flag = true;
 			break;
-
+        case ':':
+            error_flag = true;
+            break;
 		default:
 			PX4_WARN("unrecognized flag");
 			error_flag = true;

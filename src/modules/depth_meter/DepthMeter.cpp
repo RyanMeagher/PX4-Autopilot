@@ -1,12 +1,3 @@
-//
-// Created by ryan on 9/27/21.
-//
-
-#include "DepthMeter.hpp"
-
-
-depth = (pressure - cal_pressure) * 100 / (997.0f * 9.80665f);
-
 /****************************************************************************
  *
  *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
@@ -39,25 +30,92 @@ depth = (pressure - cal_pressure) * 100 / (997.0f * 9.80665f);
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+ //
+// Created by ryan on 9/27/21.
+//
+
 #include "DepthMeter.hpp"
+
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/log.h>
 #include <px4_platform_common/posix.h>
-#include <uORB/topics/sensor_combined.h>
+#include <math.h>
+
+// this calculation was taken via the javascript found
+// http://www.csgnetwork.com/h2odenscalc.html
+// uses salinity and temperature to calculate density.
+// created by University of Michigan and the NOAA
+DepthMeter::_calculate_density(float temp){
+    // temperature in Deg. C
+    float conc = _salinity / 1000;  // gm to mg conversion
+
+    float rho = 1000 * (1.0 - (temp + 288.9414) / (508929.2 * (temp + 68.12963)) * (pow(temp - 3.9863, 2)));
+
+    float A = 0.824493 - 0.0040899 * temp + 0.000076438 * pow(temp, 2) - 0.00000082467 * pow(temp, 3) +
+              0.0000000053675 * pow(temp, 4);
+
+    float B = -0.005724 + 0.00010227 * temp - 0.0000016546 * Math.pow(temp, 2);
+
+    _density = rho + A * conc + B * pow(conc, (3 / 2)) + 0.00048314 * pow(conc, 2);
+
+}
 
 
+DepthMeter::DepthMeter(unsigned int salinity)
+        : ModuleParams(nullptr),
+          _salinity(salinity)
+{
+}
 
-//TODO calculate saltwater via equation for sensor_baro_s.temperature as well as for salinty. " use avg for based on ocean type.
-/*int DepthMeter::print_status()
+DepthMeter *DepthMeter::instantiate(int argc, char *argv[])
 {
 
-    (_liquid_density > 0) ? PX4_INFO("Running in saltwater") : PX4_INFO("Running in freshwater")
-    PX4_INFO("%d")
+    int myoptind = 1;
+    int c;
+    const char *myoptarg = nullptr;
+    float salinity = 0 ;
 
-    return 0;
-}*/
+    // parse CLI arguments
+    while ((c = px4_getopt(argc, argv, "sfd:", &myoptind, &myoptarg)) != EOF) {
+        switch (c) {
+            case 's':
+                salinity = SEAWATER_SALINITY;
+                break;
+            case 'f':
+                salinity = FRESHWATER_SALINITY;
+                break;
+            case 'd':
+                salinty = std::strtof(myoptarg, nullptr, 10);
+                break;
+            default:
+                PX4_WARN("unrecognized flag");
+                error_flag = true;
+                break;
+
+        }
+    }
+
+    if (salinity == 0) {
+        return nullptr;
+    }
 
 
+    DepthMeter *instance = new DepthMeter(salinity);
+
+    if (instance == nullptr) {
+        PX4_ERR("alloc failed");
+    }
+
+    return instance;
+}
+
+
+
+int DepthMeter::print_status()
+{
+    PX4_INFO("Running")
+
+}
 
 int DepthMeter::task_spawn(int argc, char *argv[])
 {
@@ -76,57 +134,9 @@ int DepthMeter::task_spawn(int argc, char *argv[])
     return 0;
 }
 
-DepthMeter *DepthMeter::instantiate(int argc, char *argv[])
-{
-
-    int myoptind = 1;
-    int ch;
-    const char *myoptarg = nullptr;
-
-    // parse CLI arguments
-    while ((ch = px4_getopt(argc, argv, "sf", &myoptind, &myoptarg)) != EOF) {
-        switch (ch) {
-            case 's':
-                _liquid_type = false; //saltwater : 0 default:
-                break;
-            case 'f':
-                _liquid_type = true;
-                break;
-            case ":":
-                break;
-            case '?':
-                error_flag = true;
-                break;
-
-            default:
-                PX4_WARN("unrecognized flag");
-                error_flag = true;
-                break;
-        }
-    }
-
-    if (error_flag) {
-        return nullptr;
-    }
-
-    DepthMeter *instance = new DepthMeter(example_param, example_flag);
-
-    if (instance == nullptr) {
-        PX4_ERR("alloc failed");
-    }
-
-    return instance;
-}
-
-
-
-DepthMeter::DepthMeter(int example_param, bool example_flag)
-        : ModuleParams(nullptr)
-{
-}
-
 void DepthMeter::run()
 {
+
 
     px4_pollfd_struct_t fds[1];
     fds[0].fd = _sensor_baro_sub;
@@ -148,29 +158,21 @@ void DepthMeter::run()
 
         } else if (fds[0].revents & POLLIN) {
 
-            orb_copy(ORB_ID(sensor_baro), sensor_baro_sub, &_sensor_baro_s);
-            _sensor_hydrostatic_pressure_s.timestamp_sample = _sensor_baro_s.timestamp_sample;
-            _sensor_hydrostatic_pressure_s.current_depth =
+            orb_copy(ORB_ID(sensor_baro), _sensor_baro_sub, &_sensor_baro_msg);
+            _calculate_density(_sensor_baro_msg.temperature);
+            _sensor_hydrostatic_pressure_msg.timestamp = _sensor_baro_msg.timestamp;
+            _sensor_hydrostatic_pressure_msg.timestamp_sample = _sensor_baro_msg.timestamp_sample;
+            //TODO: figure out pressure calibration based on air pressure of reading while sub is above air
+            // depth = (pressure - cal_pressure) * 100 / (997.0f * 9.80665f);
+            _sensor_hydrostatic_pressure_msg.depth = (_sensor_baro_msg.pressure * 100.f) / (_density * 9.80665f);
+            _sensor_hydrostatic_pressure_sub.publish(_sensor_hydrostatic_pressure_msg);
 
         }
     }
 
-    orb_unsubscribe(sensor_combined_sub);
+    orb_unsubscribe(_sensor_baro_sub);
 }
 
-
-void DepthMeter::parameters_update(bool force)
-{
-    // check for parameter updates
-    if (_parameter_update_sub.updated() || force) {
-        // clear update
-        parameter_update_s update;
-        _parameter_update_sub.copy(&update);
-
-        // update parameters from storage
-        updateParams();
-    }
-}
 
 int DepthMeter::print_usage(const char *reason)
 {
@@ -194,10 +196,11 @@ $ module start -f -p 42
 
 )DESCR_STR");
 
-    PRINT_MODULE_USAGE_NAME("module", "template");
+    PRINT_MODULE_USAGE_NAME("depth_meter", "underwater");
     PRINT_MODULE_USAGE_COMMAND("start");
-    PRINT_MODULE_USAGE_PARAM_FLAG('f', "Optional example flag", true);
-    PRINT_MODULE_USAGE_PARAM_INT('p', 0, 0, 1000, "Optional example parameter", true);
+    PRINT_MODULE_USAGE_PARAM_FLAG('f', "freshwater", true);
+    PRINT_MODULE_USAGE_PARAM_FLAG('s', "seawater", true);
+    PRINT_MODULE_USAGE_PARAM_FLAG('d', "user supplied density", true);
     PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
     return 0;

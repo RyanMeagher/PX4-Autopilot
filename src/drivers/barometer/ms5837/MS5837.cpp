@@ -401,7 +401,6 @@ int MS5837::collect() {
 
         altitude = (1.0f - (float) pow((pressure / 1013.25f), 0.190284f)) * 145366.45f * 0.3048f;
 
-        _px4_barometer.set_depth(depth);
         _px4_barometer.update(timestamp_sample, pressure);
     }
 
