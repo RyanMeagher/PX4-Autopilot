@@ -46,8 +46,10 @@
 // uses salinity and temperature to calculate density.
 // created by University of Michigan and the NOAA
 DepthMeter::_calculate_density(float temp){
-    // temperature in Deg. C
     float conc = _salinity / 1000;  // gm to mg conversion
+
+    temp = temp / 100.f; // 1981 == 19.81 C 
+
 
     float rho = 1000 * (1.0 - (temp + 288.9414) / (508929.2 * (temp + 68.12963)) * (pow(temp - 3.9863, 2)));
 
@@ -161,7 +163,7 @@ void DepthMeter::run()
             orb_copy(ORB_ID(sensor_baro), _sensor_baro_sub, &_sensor_baro_msg);
 
             // if there was a temp change recalculate density
-            if (abs(_sensor_baro_msg.temperature - _previous_temp) >= 0.1f){
+            if (abs(_sensor_baro_msg.temperature - _previous_temp) >= 10.f){
                 _calculate_density(_sensor_baro_msg.temperature);
             }
 
