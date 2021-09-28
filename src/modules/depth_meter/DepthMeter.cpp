@@ -54,7 +54,7 @@ DepthMeter::_calculate_density(float temp){
     float A = 0.824493 - 0.0040899 * temp + 0.000076438 * pow(temp, 2) - 0.00000082467 * pow(temp, 3) +
               0.0000000053675 * pow(temp, 4);
 
-    float B = -0.005724 + 0.00010227 * temp - 0.0000016546 * Math.pow(temp, 2);
+    float B = -0.005724 + 0.00010227 * temp - 0.0000016546 * pow(temp, 2);
 
     _density = rho + A * conc + B * pow(conc, (3 / 2)) + 0.00048314 * pow(conc, 2);
 
@@ -108,8 +108,6 @@ DepthMeter *DepthMeter::instantiate(int argc, char *argv[])
 
     return instance;
 }
-
-
 
 int DepthMeter::print_status()
 {
