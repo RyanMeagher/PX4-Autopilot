@@ -47,6 +47,8 @@ private:
     void _calculate_density(float temp);
     float _salinity; //salinity in mg/L or PPM
     float _density;  //kg/m3
+    float _previous_temp;
+
     // subscribe to barometer type to calculate pressure
     uORB::Subscription _sensor_baro_sub {ORB_ID(sensor_baro)}; // subscribe to barometer type to calculate pressure
     //publish depth calculation to sensor_hydrostatic_pressure orb

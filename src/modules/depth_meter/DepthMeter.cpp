@@ -63,7 +63,9 @@ DepthMeter::_calculate_density(float temp){
 
 DepthMeter::DepthMeter(unsigned int salinity)
         : ModuleParams(nullptr),
-          _salinity(salinity)
+          _salinity(salinity),
+          _previous_temp{0},
+          _density{0}
 {
 }
 
@@ -157,12 +159,19 @@ void DepthMeter::run()
         } else if (fds[0].revents & POLLIN) {
 
             orb_copy(ORB_ID(sensor_baro), _sensor_baro_sub, &_sensor_baro_msg);
-            _calculate_density(_sensor_baro_msg.temperature);
+
+            // if there was a temp change recalculate density
+            if (abs(_sensor_baro_msg.temperature - _previous_temp) >= 0.1f){
+                _calculate_density(_sensor_baro_msg.temperature);
+            }
+
+            // update sensor_hydrostatic_pressure msg
             _sensor_hydrostatic_pressure_msg.timestamp = _sensor_baro_msg.timestamp;
             _sensor_hydrostatic_pressure_msg.timestamp_sample = _sensor_baro_msg.timestamp_sample;
             //TODO: figure out pressure calibration based on air pressure of reading while sub is above air
             // depth = (pressure - cal_pressure) * 100 / (997.0f * 9.80665f);
             _sensor_hydrostatic_pressure_msg.depth = (_sensor_baro_msg.pressure * 100.f) / (_density * 9.80665f);
+
             _sensor_hydrostatic_pressure_sub.publish(_sensor_hydrostatic_pressure_msg);
 
         }
