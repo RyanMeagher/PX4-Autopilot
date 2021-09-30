@@ -169,10 +169,10 @@ bool MS5837::crc4(uint16_t *n_prom) {
     for (cnt = 0; cnt < 16; cnt++) {
         /* uneven bytes */
         if (cnt & 1) {
-            n_rem ^= (uint8_t) ((n_prom[cnt >> 1]) & 0x00FF);
+            n_rem ^= (uint16_t) ((n_prom[cnt >> 1]) & 0x00FF);
 
         } else {
-            n_rem ^= (uint8_t) (n_prom[cnt >> 1] >> 8);
+            n_rem ^= (uint16_t) (n_prom[cnt >> 1] >> 8);
         }
 
         for (n_bit = 8; n_bit > 0; n_bit--) {
