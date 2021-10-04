@@ -43,7 +43,7 @@ public:
 
 private:
 
-    // update density based on salonity and current temperature
+    // update density based on salnity and current temperature
     void _calculate_density(float temp);
     float _salinity; //salinity in mg/L or PPM
     float _density;  //kg/m3

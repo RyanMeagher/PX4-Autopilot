@@ -399,8 +399,6 @@ int MS5837::collect() {
             first = false;
         }
 
-        altitude = (1.0f - (float) pow((pressure / 1013.25f), 0.190284f)) * 145366.45f * 0.3048f;
-
         _px4_barometer.update(timestamp_sample, pressure);
     }
 
@@ -429,8 +427,6 @@ void MS5837::print_status()
 
 	PX4_INFO("Temperature = %f C", (double)temperature);
 	PX4_INFO("Pressure = %f mbar", (double)(pressure));
-	PX4_INFO("Depth = %f m", (double)depth);
-	PX4_INFO("Altitude = %f m above mean sea level", (double)altitude);
 }
 
 int MS5837::read_raw(uint32_t *data) {

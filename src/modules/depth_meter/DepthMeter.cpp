@@ -163,6 +163,7 @@ void DepthMeter::run()
             orb_copy(ORB_ID(sensor_baro), _sensor_baro_sub, &_sensor_baro_msg);
 
             // if there was a temp change recalculate density
+            //TODO what are the units of temperature?
             if (abs(_sensor_baro_msg.temperature - _previous_temp) >= 10.f){
                 _calculate_density(_sensor_baro_msg.temperature);
             }

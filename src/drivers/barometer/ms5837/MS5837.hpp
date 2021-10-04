@@ -67,7 +67,6 @@ typedef union prom_u {
 
 #pragma pack(pop)
 
-
 class MS5837 : public device::I2C, public I2CSPIDriver<MS5837> {
 public:
     MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency, MS5837_TYPE ms5837_type);
@@ -123,5 +122,4 @@ protected:
     float temperature;
     float cal_pressure;
     float pressure;
-    float altitude;
 };
