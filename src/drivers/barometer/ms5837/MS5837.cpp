@@ -445,4 +445,3 @@ int MS5837::read_raw(uint32_t *data) {
 
     return ret;
 }
-

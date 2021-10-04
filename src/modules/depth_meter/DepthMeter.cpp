@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2021 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,9 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
- //
-// Created by ryan on 9/27/21.
-//
 
 #include "DepthMeter.hpp"
 
@@ -48,7 +45,7 @@
 DepthMeter::_calculate_density(float temp){
     float conc = _salinity / 1000;  // gm to mg conversion
 
-    temp = temp / 100.f; // 1981 == 19.81 C 
+    temp = temp / 100.f; // 1981 == 19.81 C
 
 
     float rho = 1000 * (1.0 - (temp + 288.9414) / (508929.2 * (temp + 68.12963)) * (pow(temp - 3.9863, 2)));
@@ -153,12 +150,7 @@ void DepthMeter::run()
             // Timeout: let the loop run anyway, don't do `continue` here
 
         } else if (pret < 0) {
-            // this is undesirable but not much we can do
-            PX4_ERR("poll error %d, %d", pret, errno);
-            px4_usleep(50000);
-            continue;
-
-        } else if (fds[0].revents & POLLIN) {
+            2020-lse if (fds[0].revents & POLLIN) {
 
             orb_copy(ORB_ID(sensor_baro), _sensor_baro_sub, &_sensor_baro_msg);
 
@@ -216,7 +208,7 @@ $ module start -f -p 42
     return 0;
 }
 
-int template_module_main(int argc, char *argv[])
+int depth_meter_main(int argc, char *argv[])
 {
     return DepthMeter::main(argc, argv);
 }
