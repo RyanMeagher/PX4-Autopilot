@@ -66,7 +66,8 @@ typedef enum io_timer_channel_mode_t {
 	IOTimerChanMode_Trigger = 5,
 	IOTimerChanMode_Dshot   = 6,
 	IOTimerChanMode_LED     = 7,
-	IOTimerChanMode_Other   = 8,
+	IOTimerChanMode_PPS     = 8,
+	IOTimerChanMode_Other   = 9,
 	IOTimerChanModeSize
 } io_timer_channel_mode_t;
 
@@ -90,6 +91,8 @@ typedef struct io_timers_t {
 typedef struct io_timers_channel_mapping_element_t {
 	uint32_t first_channel_index;
 	uint32_t channel_count;
+	uint32_t lowest_timer_channel;
+	uint32_t channel_count_including_gaps;
 } io_timers_channel_mapping_element_t;
 
 /* mapping for each io_timers to timer_io_channels */
@@ -138,7 +141,7 @@ __EXPORT int io_timer_allocate_channel(unsigned channel, io_timer_channel_mode_t
 __EXPORT int io_timer_unallocate_channel(unsigned channel);
 __EXPORT int io_timer_get_channel_mode(unsigned channel);
 __EXPORT int io_timer_get_mode_channels(io_timer_channel_mode_t mode);
-__EXPORT extern void io_timer_trigger(void);
+__EXPORT extern void io_timer_trigger(unsigned channel_mask);
 
 /**
  * Reserve a timer

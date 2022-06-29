@@ -149,8 +149,8 @@ static int io_timer_handler7(int irq, void *context, void *arg);
 /* The transfer is done to 4 registers starting from TIMx_CR1 + TIMx_DCR.DBA  */
 #define TIM_DMABURSTLENGTH_4TRANSFERS	0x00000300U
 
-//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED Other
-io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0 };
+//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED PPS Other
+io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0, 0 };
 
 typedef uint8_t io_timer_allocation_t; /* big enough to hold MAX_IO_TIMERS */
 
@@ -579,9 +579,9 @@ static inline void io_timer_set_PWM_mode(unsigned timer)
 	rPSC(timer) = (io_timers[timer].clock_freq / BOARD_PWM_FREQ) - 1;
 }
 
-void io_timer_trigger(void)
+void io_timer_trigger(unsigned channels_mask)
 {
-	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot);
+	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot) & channels_mask;
 
 	if (oneshots != 0) {
 		uint32_t action_cache[MAX_IO_TIMERS] = {0};
@@ -644,7 +644,12 @@ int io_timer_init_timer(unsigned timer, io_timer_channel_mode_t mode)
 		rCCER(timer) = 0;
 		rDCR(timer) = 0;
 
-		if ((io_timers[timer].base == STM32_TIM1_BASE) || (io_timers[timer].base == STM32_TIM8_BASE)) {
+		if ((io_timers[timer].base == STM32_TIM1_BASE)
+		    || (io_timers[timer].base == STM32_TIM8_BASE)
+#ifdef STM32_TIM15_BASE
+		    || (io_timers[timer].base == STM32_TIM15_BASE)
+#endif
+		   ) {
 
 			/* master output enable = on */
 

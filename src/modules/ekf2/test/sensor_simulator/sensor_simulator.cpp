@@ -48,31 +48,31 @@ void SensorSimulator::loadSensorDataFromFile(std::string file_name)
 		getline(file, sensor_type, ',');
 
 		if (!sensor_type.compare("imu")) {
-			sensor_sample.sensor_type = sensor_info::IMU;
+			sensor_sample.sensor_type = sensor_info::measurement_t::IMU;
 
 		} else if (!sensor_type.compare("mag")) {
-			sensor_sample.sensor_type = sensor_info::MAG;
+			sensor_sample.sensor_type = sensor_info::measurement_t::MAG;
 
 		} else if (!sensor_type.compare("baro")) {
-			sensor_sample.sensor_type = sensor_info::BARO;
+			sensor_sample.sensor_type = sensor_info::measurement_t::BARO;
 
 		} else if (!sensor_type.compare("gps")) {
-			sensor_sample.sensor_type = sensor_info::GPS;
+			sensor_sample.sensor_type = sensor_info::measurement_t::GPS;
 
 		} else if (!sensor_type.compare("airspeed")) {
-			sensor_sample.sensor_type = sensor_info::AIRSPEED;
+			sensor_sample.sensor_type = sensor_info::measurement_t::AIRSPEED;
 
 		} else if (!sensor_type.compare("range")) {
-			sensor_sample.sensor_type = sensor_info::RANGE;
+			sensor_sample.sensor_type = sensor_info::measurement_t::RANGE;
 
 		} else if (!sensor_type.compare("flow")) {
-			sensor_sample.sensor_type = sensor_info::FLOW;
+			sensor_sample.sensor_type = sensor_info::measurement_t::FLOW;
 
 		} else if (!sensor_type.compare("vio")) {
-			sensor_sample.sensor_type = sensor_info::VISION;
+			sensor_sample.sensor_type = sensor_info::measurement_t::VISION;
 
 		} else if (!sensor_type.compare("landed")) {
-			sensor_sample.sensor_type = sensor_info::LANDING_STATUS;
+			sensor_sample.sensor_type = sensor_info::measurement_t::LANDING_STATUS;
 
 		} else {
 			std::cout << "Sensor type in file unknown" << std::endl;
@@ -153,6 +153,10 @@ void SensorSimulator::runMicroseconds(uint32_t duration)
 		updateSensors();
 
 		if (update_imu) {
+			if (_imu.moving()) {
+				_ekf->set_vehicle_at_rest(false);
+			}
+
 			// Update at IMU rate
 			_ekf->update();
 		}
@@ -193,6 +197,10 @@ void SensorSimulator::runReplayMicroseconds(uint32_t duration)
 		updateSensors();
 
 		if (update_imu) {
+			if (_imu.moving()) {
+				_ekf->set_vehicle_at_rest(false);
+			}
+
 			_ekf->update();
 		}
 	}
@@ -224,7 +232,7 @@ void SensorSimulator::setSensorDataFromReplayData()
 
 void SensorSimulator::setSingleReplaySample(const sensor_info &sample)
 {
-	if (sample.sensor_type == sensor_info::IMU) {
+	if (sample.sensor_type == sensor_info::measurement_t::IMU) {
 		Vector3f accel{(float) sample.sensor_data[0],
 			       (float) sample.sensor_data[1],
 			       (float) sample.sensor_data[2]};
@@ -233,16 +241,16 @@ void SensorSimulator::setSingleReplaySample(const sensor_info &sample)
 			      (float) sample.sensor_data[5]};
 		_imu.setData(accel, gyro);
 
-	} else if (sample.sensor_type == sensor_info::MAG) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::MAG) {
 		Vector3f mag{(float) sample.sensor_data[0],
 			     (float) sample.sensor_data[1],
 			     (float) sample.sensor_data[2]};
 		_mag.setData(mag);
 
-	} else if (sample.sensor_type == sensor_info::BARO) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::BARO) {
 		_baro.setData((float) sample.sensor_data[0]);
 
-	} else if (sample.sensor_type == sensor_info::GPS) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::GPS) {
 		_gps.setAltitude((int32_t) sample.sensor_data[0]);
 		_gps.setLatitude((int32_t) sample.sensor_data[1]);
 		_gps.setLongitude((int32_t) sample.sensor_data[2]);
@@ -250,13 +258,13 @@ void SensorSimulator::setSingleReplaySample(const sensor_info &sample)
 					  (float) sample.sensor_data[4],
 					  (float) sample.sensor_data[5]));
 
-	} else if (sample.sensor_type == sensor_info::AIRSPEED) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::AIRSPEED) {
 		_airspeed.setData((float) sample.sensor_data[0], (float) sample.sensor_data[1]);
 
-	} else if (sample.sensor_type == sensor_info::RANGE) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::RANGE) {
 		_rng.setData((float) sample.sensor_data[0], (float) sample.sensor_data[1]);
 
-	} else if (sample.sensor_type == sensor_info::FLOW) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::FLOW) {
 		flowSample flow_sample;
 		flow_sample.flow_xy_rad = Vector2f(sample.sensor_data[0],
 						   sample.sensor_data[1]);
@@ -266,7 +274,7 @@ void SensorSimulator::setSingleReplaySample(const sensor_info &sample)
 		flow_sample.quality = sample.sensor_data[5];
 		_flow.setData(flow_sample);
 
-	} else if (sample.sensor_type == sensor_info::VISION) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::VISION) {
 		// sensor not yet implemented
 
 		// extVisionSample vision_sample;
@@ -275,13 +283,107 @@ void SensorSimulator::setSingleReplaySample(const sensor_info &sample)
 		// vision_sample.vel;
 		// _vio.setData((float) sample.sensor_data[0], (float) sample.sensor_data[1]);
 
-	} else if (sample.sensor_type == sensor_info::LANDING_STATUS) {
+	} else if (sample.sensor_type == sensor_info::measurement_t::LANDING_STATUS) {
 		bool landed = std::abs(sample.sensor_data[0]) <= 0;
 		_ekf->set_in_air_status(!landed);
 
 	} else {
 		printf("Unknown sensor type, can not set replay sample");
 		system_exit(-1);
+	}
+}
+
+void SensorSimulator::setTrajectoryTargetVelocity(const Vector3f &velocity_target)
+{
+	for (int i = 0; i < 3; i++) {
+		_trajectory[i].updateDurations(velocity_target(i));
+	}
+
+	VelocitySmoothing::timeSynchronization(_trajectory, 3);
+}
+
+void SensorSimulator::runTrajectorySeconds(float duration_seconds)
+{
+	runTrajectoryMicroseconds(uint32_t(duration_seconds * 1e6f));
+}
+
+void SensorSimulator::runTrajectoryMicroseconds(uint32_t duration)
+{
+	// simulate in 1000us steps
+	const uint64_t start_time = _time;
+
+	for (; _time < start_time + duration; _time += 1000) {
+
+		for (int i = 0; i < 3; i++) {
+			_trajectory[i].updateTraj(1e-3f);
+		}
+
+		setSensorDataFromTrajectory();
+
+		bool update_imu = _imu.should_send(_time);
+		updateSensors();
+
+		if (update_imu) {
+			if (_imu.moving()) {
+				_ekf->set_vehicle_at_rest(false);
+			}
+
+			_ekf->update();
+		}
+	}
+}
+
+void SensorSimulator::setSensorDataFromTrajectory()
+{
+	const Vector3f accel_world{_trajectory[0].getCurrentAcceleration(),
+				   _trajectory[1].getCurrentAcceleration(),
+				   _trajectory[2].getCurrentAcceleration()};
+	const Vector3f vel_world{_trajectory[0].getCurrentVelocity(),
+				 _trajectory[1].getCurrentVelocity(),
+				 _trajectory[2].getCurrentVelocity()};
+
+	// IMU
+	const Vector3f earth_gravity = {0.0f, 0.0f, -CONSTANTS_ONE_G};
+	const Dcmf R_world_to_body = _R_body_to_world.transpose();
+	const Vector3f specific_force = R_world_to_body * (accel_world + earth_gravity);
+	const Vector3f gyro{};
+
+	_imu.setData(specific_force, gyro);
+
+	// Magnetometer
+	if (_mag.isRunning()) {
+		const Vector3f world_mag_field = Vector3f{0.2f, 0.0f, 0.4f};
+		const Vector3f mag_field_body = R_world_to_body * world_mag_field;
+		_mag.setData(mag_field_body);
+	}
+
+	// Baro
+	/* if (_baro.isRunning()) { */
+	/* 	_baro.setData(..); */
+	/* } */
+
+	// Range finder
+	const float distance_to_ground = -_trajectory[2].getCurrentPosition() / _R_body_to_world(2, 2);
+
+	if (_rng.isRunning()) {
+		_rng.setData(distance_to_ground, -1);
+	}
+
+	// Optical flow
+	if (_flow.isRunning()) {
+		flowSample flow_sample = _flow.dataAtRest();
+		const Vector3f vel_body = R_world_to_body * vel_world;
+		flow_sample.flow_xy_rad =
+			Vector2f(vel_body(1) * flow_sample.dt / distance_to_ground,
+				 -vel_body(0) * flow_sample.dt / distance_to_ground);
+		_flow.setData(flow_sample);
+	}
+
+	if (_gps.isRunning()) {
+		/* _gps.setAltitude(); */
+		/* _gps.setLatitude(); */
+		/* _gps.setLongitude(); */
+		_gps.setVelocity(vel_world);
 	}
 }
 
@@ -311,11 +413,12 @@ void SensorSimulator::setImuBias(Vector3f accel_bias, Vector3f gyro_bias)
 
 void SensorSimulator::simulateOrientation(Quatf orientation)
 {
+	_R_body_to_world = Dcmf(orientation);
+
 	const Vector3f world_sensed_gravity = {0.0f, 0.0f, -CONSTANTS_ONE_G};
 	const Vector3f world_mag_field = Vector3f{0.2f, 0.0f, 0.4f};
-	const Dcmf R_bodyToWorld(orientation);
-	const Vector3f sensed_gravity_body = R_bodyToWorld.transpose() * world_sensed_gravity;
-	const Vector3f body_mag_field = R_bodyToWorld.transpose() * world_mag_field;
+	const Vector3f sensed_gravity_body = _R_body_to_world.transpose() * world_sensed_gravity;
+	const Vector3f body_mag_field = _R_body_to_world.transpose() * world_mag_field;
 
 	_imu.setData(sensed_gravity_body, Vector3f{0.0f, 0.0f, 0.0f});
 	_mag.setData(body_mag_field);

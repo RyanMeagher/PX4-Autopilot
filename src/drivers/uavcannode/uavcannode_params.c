@@ -50,3 +50,21 @@ PARAM_DEFINE_INT32(CANNODE_NODE_ID, 120);
  * @group UAVCAN
  */
 PARAM_DEFINE_INT32(CANNODE_BITRATE, 1000000);
+
+/**
+ * CAN built-in bus termination
+ *
+ * @boolean
+ * @max 1
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(CANNODE_TERM, 0);
+
+/**
+ * Enable RTCM pub/sub
+ *
+ * @boolean
+ * @max 1
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(CANNODE_GPS_RTCM, 0);

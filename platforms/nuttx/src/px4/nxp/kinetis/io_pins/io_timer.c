@@ -152,8 +152,8 @@ static int io_timer_handler7(int irq, void *context, void *arg);
 
 #define CnSC_PWMIN_INIT 0 // TBD
 
-//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED Other
-io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0 };
+//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED PPS Other
+io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0, 0 };
 
 typedef uint8_t io_timer_allocation_t; /* big enough to hold MAX_IO_TIMERS */
 
@@ -518,9 +518,9 @@ static inline void io_timer_set_PWM_mode(unsigned timer)
 	px4_leave_critical_section(flags);
 }
 
-void io_timer_trigger(void)
+void io_timer_trigger(unsigned channel_mask)
 {
-	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot);
+	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot) & channel_mask;
 	uint32_t action_cache[MAX_IO_TIMERS] = {0};
 	int actions = 0;
 

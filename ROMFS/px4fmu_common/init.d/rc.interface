@@ -17,6 +17,19 @@ set OUTPUT_DEV none
 set OUTPUT_AUX_DEV /dev/pwm_output1
 set OUTPUT_EXTRA_DEV /dev/pwm_output0
 
+# set these before starting the modules
+if [ $PWM_AUX_OUT != none ]
+then
+
+	param set PWM_AUX_OUT ${PWM_AUX_OUT}
+fi
+
+
+if [ $PWM_OUT != none ]
+then
+	param set PWM_MAIN_OUT ${PWM_OUT}
+fi
+
 #
 # If mount (gimbal) control is enabled and output mode is AUX, set the aux
 # mixer to mount (override the airframe-specific MIXER_AUX setting).
@@ -32,7 +45,7 @@ fi
 #
 # Set the default output mode if none was set.
 #
-if [ $OUTPUT_MODE = none ]
+if [ $OUTPUT_MODE = none -a $OUTPUT_MODE != skip ]
 then
 	if [ $USE_IO = yes ]
 	then
@@ -59,7 +72,7 @@ fi
 #
 # If OUTPUT_MODE = none then something is wrong with setup and we shouldn't try to enable output.
 #
-if [ $OUTPUT_MODE != none ]
+if [ $OUTPUT_MODE != none -a $OUTPUT_MODE != skip ]
 then
 
 	if [ $OUTPUT_MODE = hil -o $OUTPUT_MODE = sim ]
@@ -78,28 +91,30 @@ then
 		fi
 	fi
 
-	if [ $OUTPUT_MODE = io ]
+	#
+	# Start IO for PWM output or RC input if needed.
+	#
+	if [ $IO_PRESENT = yes ]
 	then
-		. ${R}etc/init.d/rc.io
+		if ! px4io start
+		then
+			echo "PX4IO start failed"
+			tune_control play -t 18 # PROG_PX4IO_ERR
+		fi
 	fi
 
 	if [ $OUTPUT_MODE = $OUTPUT_CMD -o $OUTPUT_MODE = io ]
 	then
-		if ! $OUTPUT_CMD start
+		if param compare SYS_CTRL_ALLOC 1
 		then
-			echo "$OUTPUT_CMD start failed"
-			tune_control play error
-		fi
-	fi
-
-	#
-	# Start IO for RC input if needed.
-	#
-	if [ $IO_PRESENT = yes ]
-	then
-		if [ $OUTPUT_MODE != io ]
-		then
-			. ${R}etc/init.d/rc.io
+			pwm_out start
+			dshot start
+		else
+			if ! $OUTPUT_CMD start
+			then
+				echo "$OUTPUT_CMD start failed"
+				tune_control play error
+			fi
 		fi
 	fi
 fi
@@ -212,21 +227,17 @@ then
 	fi
 fi
 
-param set PWM_AUX_OUT ${PWM_AUX_OUT}
-
 if [ $OUTPUT_MODE = pwm_out -o $OUTPUT_MODE = io ]
 then
-	if [ $PWM_OUT != none ]
+	if [ $PWM_OUT != none -a $PWM_MAIN_RATE != none ]
 	then
 		# Set PWM output frequency.
-		if [ $PWM_MAIN_RATE != none ]
+		if ! param compare SYS_CTRL_ALLOC 1
 		then
 			pwm rate -c ${PWM_OUT} -r ${PWM_MAIN_RATE}
 		fi
 	fi
 fi
-
-param set PWM_MAIN_OUT ${PWM_OUT}
 
 if [ $EXTRA_MIXER_MODE != none ]
 then

@@ -41,11 +41,6 @@
 
 using namespace matrix;
 
-FlightTaskManualPosition::FlightTaskManualPosition() : _collision_prevention(this)
-{
-
-}
-
 bool FlightTaskManualPosition::updateInitialize()
 {
 	bool ret = FlightTaskManualAltitude::updateInitialize();
@@ -56,20 +51,14 @@ bool FlightTaskManualPosition::updateInitialize()
 	       && PX4_ISFINITE(_velocity(1));
 }
 
-bool FlightTaskManualPosition::activate(const vehicle_local_position_setpoint_s &last_setpoint)
+bool FlightTaskManualPosition::activate(const trajectory_setpoint_s &last_setpoint)
 {
 	// all requirements from altitude-mode still have to hold
 	bool ret = FlightTaskManualAltitude::activate(last_setpoint);
 
-	// set task specific constraint
-	if (_constraints.speed_xy >= _param_mpc_vel_manual.get()) {
-		_constraints.speed_xy = _param_mpc_vel_manual.get();
-	}
-
 	_position_setpoint(0) = _position(0);
 	_position_setpoint(1) = _position(1);
 	_velocity_setpoint(0) = _velocity_setpoint(1) = 0.0f;
-	_velocity_scale = _constraints.speed_xy;
 
 	// for position-controlled mode, we need a valid position and velocity state
 	// in NE-direction
@@ -92,25 +81,22 @@ void FlightTaskManualPosition::_scaleSticks()
 
 	const float max_speed_from_estimator = _sub_vehicle_local_position.get().vxy_max;
 
-	if (PX4_ISFINITE(max_speed_from_estimator)) {
-		// use the minimum of the estimator and user specified limit
-		_velocity_scale = fminf(_constraints.speed_xy, max_speed_from_estimator);
-		// Allow for a minimum of 0.3 m/s for repositioning
-		_velocity_scale = fmaxf(_velocity_scale, 0.3f);
+	float velocity_scale = _param_mpc_vel_manual.get();
 
-	} else {
-		_velocity_scale = _constraints.speed_xy;
+	if (PX4_ISFINITE(max_speed_from_estimator)) {
+		// Constrain with optical flow limit but leave 0.3 m/s for repositioning
+		velocity_scale = math::constrain(velocity_scale, 0.3f, max_speed_from_estimator);
 	}
 
 	// scale velocity to its maximum limits
-	Vector2f vel_sp_xy = stick_xy * _velocity_scale;
+	Vector2f vel_sp_xy = stick_xy * velocity_scale;
 
 	/* Rotate setpoint into local frame. */
 	_rotateIntoHeadingFrame(vel_sp_xy);
 
 	// collision prevention
 	if (_collision_prevention.is_active()) {
-		_collision_prevention.modifySetpoint(vel_sp_xy, _velocity_scale, _position.xy(), _velocity.xy());
+		_collision_prevention.modifySetpoint(vel_sp_xy, velocity_scale, _position.xy(), _velocity.xy());
 	}
 
 	_velocity_setpoint.xy() = vel_sp_xy;
@@ -150,14 +136,15 @@ void FlightTaskManualPosition::_updateSetpoints()
 
 	_updateXYlock(); // check for position lock
 
-	// check if an external yaw handler is active and if yes, let it update the yaw setpoints
-	if (_weathervane_yaw_handler != nullptr && _weathervane_yaw_handler->is_active()) {
+	_weathervane.update();
+
+	if (_weathervane.isActive()) {
 		_yaw_setpoint = NAN;
 
 		// only enable the weathervane to change the yawrate when position lock is active (and thus the pos. sp. are NAN)
 		if (PX4_ISFINITE(_position_setpoint(0)) && PX4_ISFINITE(_position_setpoint(1))) {
 			// vehicle is steady
-			_yawspeed_setpoint += _weathervane_yaw_handler->get_weathervane_yawrate();
+			_yawspeed_setpoint += _weathervane.getWeathervaneYawrate();
 		}
 	}
 }

@@ -15,7 +15,7 @@ pipeline {
         // stage('Catkin build on ROS workspace') {
         //   agent {
         //     docker {
-        //       image 'px4io/px4-dev-ros-melodic:2021-05-04'
+        //       image 'px4io/px4-dev-ros-melodic:2021-08-18'
         //       args '-e CCACHE_BASEDIR=$WORKSPACE -v ${CCACHE_DIR}:${CCACHE_DIR}:rw -e HOME=$WORKSPACE'
         //     }
         //   }
@@ -56,7 +56,7 @@ pipeline {
         stage('Colcon build on ROS2 workspace') {
           agent {
             docker {
-              image 'px4io/px4-dev-ros2-foxy:2021-05-04'
+              image 'px4io/px4-dev-ros2-foxy:2021-08-18'
               args '-e CCACHE_BASEDIR=$WORKSPACE -v ${CCACHE_DIR}:${CCACHE_DIR}:rw -e HOME=$WORKSPACE'
             }
           }
@@ -85,10 +85,10 @@ pipeline {
 
         stage('Airframe') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
-            sh 'make distclean'
+            sh 'make distclean; git clean -ff -x -d .'
             sh 'git fetch --all --tags'
             sh 'make airframe_metadata'
             dir('build/px4_sitl_default/docs') {
@@ -98,17 +98,17 @@ pipeline {
           }
           post {
             always {
-              sh 'make distclean'
+              sh 'make distclean; git clean -ff -x -d .'
             }
           }
         }
 
         stage('Parameter') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
-            sh 'make distclean'
+            sh 'make distclean; git clean -ff -x -d .'
             sh 'git fetch --all --tags'
             sh 'make parameters_metadata'
             dir('build/px4_sitl_default/docs') {
@@ -118,17 +118,17 @@ pipeline {
           }
           post {
             always {
-              sh 'make distclean'
+              sh 'make distclean; git clean -ff -x -d .'
             }
           }
         }
 
         stage('Module') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
-            sh 'make distclean'
+            sh 'make distclean; git clean -ff -x -d .'
             sh 'git fetch --all --tags'
             sh 'make module_documentation'
             dir('build/px4_sitl_default/docs') {
@@ -138,14 +138,14 @@ pipeline {
           }
           post {
             always {
-              sh 'make distclean'
+              sh 'make distclean; git clean -ff -x -d .'
             }
           }
         }
 
         stage('msg file docs') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh 'mkdir -p build/msg_docs; ./msg/tools/generate_msg_docs.py -d build/msg_docs'
@@ -156,7 +156,7 @@ pipeline {
           }
           post {
             always {
-              sh 'make distclean'
+              sh 'make distclean; git clean -ff -x -d .'
             }
           }
         }
@@ -164,13 +164,13 @@ pipeline {
         stage('uORB graphs') {
           agent {
             docker {
-              image 'px4io/px4-dev-nuttx-focal:2021-05-04'
+              image 'px4io/px4-dev-nuttx-focal:2021-08-18'
               args '-e CCACHE_BASEDIR=$WORKSPACE -v ${CCACHE_DIR}:${CCACHE_DIR}:rw'
             }
           }
           steps {
             sh 'export'
-            sh 'make distclean'
+            sh 'make distclean; git clean -ff -x -d .'
             sh 'git fetch --all --tags'
             sh 'make uorb_graphs'
             dir('Tools/uorb_graph') {
@@ -180,7 +180,7 @@ pipeline {
           }
           post {
             always {
-              sh 'make distclean'
+              sh 'make distclean; git clean -ff -x -d .'
             }
           }
         }
@@ -194,7 +194,7 @@ pipeline {
 
         stage('Userguide') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')
@@ -228,7 +228,7 @@ pipeline {
 
         stage('QGroundControl') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')
@@ -256,12 +256,12 @@ pipeline {
 
         stage('microRTPS agent') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')
             sh('git fetch --all --tags')
-            sh('make distclean')
+            sh('make distclean; git clean -ff -x -d .')
             sh('make px4_sitl_rtps')
             withCredentials([usernamePassword(credentialsId: 'px4buildbot_github_personal_token', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
               sh("git clone https://${GIT_USER}:${GIT_PASS}@github.com/PX4/micrortps_agent.git -b ${BRANCH_NAME}")
@@ -286,11 +286,11 @@ pipeline {
 
         stage('PX4 ROS msgs') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')
-            sh('make distclean')
+            sh('make distclean; git clean -ff -x -d .')
             withCredentials([usernamePassword(credentialsId: 'px4buildbot_github_personal_token', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
               sh("git clone https://${GIT_USER}:${GIT_PASS}@github.com/PX4/px4_msgs.git")
               // 'master' branch
@@ -315,11 +315,11 @@ pipeline {
 
         stage('PX4 ROS2 bridge') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')
-            sh('make distclean')
+            sh('make distclean; git clean -ff -x -d .')
             withCredentials([usernamePassword(credentialsId: 'px4buildbot_github_personal_token', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
               sh("git clone https://${GIT_USER}:${GIT_PASS}@github.com/PX4/px4_ros_com.git -b ${BRANCH_NAME}")
               // deploy uORB RTPS ID map
@@ -358,7 +358,7 @@ pipeline {
 
         stage('S3') {
           agent {
-            docker { image 'px4io/px4-dev-base-focal:2021-05-04' }
+            docker { image 'px4io/px4-dev-base-focal:2021-08-18' }
           }
           steps {
             sh('export')

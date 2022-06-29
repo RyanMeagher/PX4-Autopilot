@@ -41,11 +41,11 @@ px4_add_module(
 		tap_esc_uploader.h
 		TAP_ESC.cpp
 		TAP_ESC.hpp
+	MODULE_CONFIG
+		module.yaml
 	DEPENDS
 		led
 		mixer
 		mixer_module
-		output_limit
 		tunes
 	)
-

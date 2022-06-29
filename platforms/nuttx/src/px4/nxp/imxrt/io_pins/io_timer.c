@@ -149,8 +149,8 @@ static int io_timer_handler7(int irq, void *context, void *arg);
 #define rFCTRL20(_tim)         REG(_tim,  0, IMXRT_FLEXPWM_FCTRL20_OFFSET)       /* Fault Control 2 Register */
 
 
-//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED Other
-io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0 };
+//												 				  NotUsed   PWMOut  PWMIn Capture OneShot Trigger Dshot LED PPS Other
+io_timer_channel_allocation_t channel_allocations[IOTimerChanModeSize] = { UINT16_MAX,   0,  0,  0, 0, 0, 0, 0, 0, 0 };
 
 typedef uint8_t io_timer_allocation_t; /* big enough to hold MAX_IO_TIMERS */
 
@@ -429,9 +429,9 @@ static inline void io_timer_set_PWM_mode(unsigned channel)
 	px4_leave_critical_section(flags);
 }
 
-void io_timer_trigger(void)
+void io_timer_trigger(unsigned channel_mask)
 {
-	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot);
+	int oneshots = io_timer_get_mode_channels(IOTimerChanMode_OneShot) & channel_mask;
 	struct {
 		uint32_t base;
 		uint16_t triggers;

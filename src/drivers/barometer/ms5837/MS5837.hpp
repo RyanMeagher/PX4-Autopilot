@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,96 +33,105 @@
 
 #pragma once
 
+#include <drivers/device/device.h>
 #include <drivers/device/i2c.h>
-#include <lib/drivers/barometer/PX4Barometer.hpp>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/sensor_baro.h>
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/i2c_spi_buses.h>
+#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+#include <systemlib/err.h>
 
-enum MS5837_TYPE {
-	MS5837_30BA = 0,
-	MS5837_02BA,
-};
+#include "ms5837_registers.h"
 
+/* helper macro for handling report buffer indices */
+#define INCREMENT(_x, _lim)	do { __typeof__(_x) _tmp = _x+1; if (_tmp >= _lim) _tmp = 0; _x = _tmp; } while(0)
 
-#pragma pack(push,1)
+/* helper macro for arithmetic - returns the square of the argument */
+#define POW2(_x)		((_x) * (_x))
 
-/**
- * Calibration PROM as reported by the device.
- */
-typedef struct prom_s {
-	uint16_t factory_setup;
-	uint16_t c1_pressure_sens;
-	uint16_t c2_pressure_offset;
-	uint16_t c3_temp_coeff_pres_sens;
-	uint16_t c4_temp_coeff_pres_offset;
-	uint16_t c5_reference_temp;
-	uint16_t c6_temp_coeff_temp;
-	uint16_t dummy0;
-} prom_s;
-
-typedef union prom_u {
-	uint16_t c[8];
-	prom_s s;
-} prom_u;
-
-#pragma pack(pop)
-
-
-class MS5837 : public device::I2C, public I2CSPIDriver<MS5837> {
+class MS5837 : public device::I2C, public I2CSPIDriver<MS5837>
+{
 public:
-    MS5837(I2CSPIBusOption bus_option, const int bus, int bus_frequency, MS5837_TYPE ms5837_type);
+	MS5837(const I2CSPIDriverConfig &config);
+	~MS5837() override;
 
-    ~MS5837() override;
+	static void 		print_usage();
 
-    static I2CSPIDriverBase *instantiate(const BusCLIArguments &cli, const BusInstanceIterator &iterator,
-                                         int runtime_instance);
-    static void print_usage();
+	int			init();
 
-    int init() override;
+	/**
+	 * Perform a poll cycle; collect from the previous measurement
+	 * and start a new one.
+	 *
+	 * This is the heart of the measurement state machine.  This function
+	 * alternately starts a measurement, or collects the data from the
+	 * previous measurement.
+	 *
+	 * When the interval between measurements is greater than the minimum
+	 * measurement interval, a gap is inserted between collection
+	 * and measurement to provide the most recent measurement possible
+	 * at the next interval.
+	 */
+	void			RunImpl();
+	void 			print_status() override;
+	int			read(unsigned offset, void *data, unsigned count) override;
 
-    int probe() override;
+private:
+	int			probe() override;
 
-    void RunImpl();
+	uORB::PublicationMulti<sensor_baro_s> _sensor_baro_pub{ORB_ID(sensor_baro)};
 
-protected:
-    void print_status() override;
+	ms5837::prom_u	   	_prom{};
 
-    void start();
+	bool			_collect_phase{false};
+	unsigned		_measure_phase{false};
 
-    int reset();
+	/* intermediate temperature values per MS5611/MS5607 datasheet */
+	int64_t			_OFF{0};
+	int64_t			_SENS{0};
 
-    int measure();
+	float _last_temperature{NAN};
 
-    int collect();
+	perf_counter_t		_sample_perf;
+	perf_counter_t		_measure_perf;
+	perf_counter_t		_comms_errors;
 
-    int read_prom();
+	/**
+	 * Initialize the automatic measurement state machine and start it.
+	 *
+	 * @note This function is called at open and error time.  It might make sense
+	 *       to make it more aggressive about resetting the bus in case of errors.
+	 */
+	void		_start();
 
-    int read_raw(uint32_t *data);
+	/**
+	 * Issue a measurement command for the current state.
+	 *
+	 * @return		OK if the measurement command was successful.
+	 */
+	int			_measure();
 
-    int measure(unsigned addr);
+	/**
+	 * Collect the result of the most recent measurement.
+	 */
+	int			_collect();
 
-    bool crc4(uint16_t *n_prom);
+	int			_probe_address(uint8_t address);
 
-    PX4Barometer _px4_barometer;
+	/**
+	 * Send a reset command to the MS5837.
+	 *
+	 * This is required after any bus reset.
+	 */
+	int			_reset();
 
-    enum MS5837_TYPE _ms5837_type;
+	/**
+	 * Read the MS5837 PROM
+	 *
+	 * @return		PX4_OK if the PROM reads successfully.
+	 */
+	int			_read_prom();
 
-    prom_u _prom;
-
-    bool _collect_phase{false};
-    unsigned _measure_phase{false};
-
-    /* intermediate temperature values per MS5837 datasheet */
-    int64_t _OFF{0};
-    int64_t _SENS{0};
-
-    perf_counter_t _sample_perf;
-    perf_counter_t _measure_perf;
-    perf_counter_t _comms_errors;
-
-    float temperature;
-    float cal_pressure;
-    float pressure;
-    float depth;
-    float altitude;
+	bool		_crc4(uint16_t *n_prom);
 };

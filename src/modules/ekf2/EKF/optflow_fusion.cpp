@@ -236,25 +236,29 @@ void Ekf::fuseOptFlow()
 
 
 	// run the innovation consistency check and record result
-	bool flow_fail = false;
+	bool all_innovation_checks_passed = true;
 	float test_ratio[2];
 	test_ratio[0] = sq(_flow_innov(0)) / (sq(math::max(_params.flow_innov_gate, 1.0f)) * _flow_innov_var(0));
 	test_ratio[1] = sq(_flow_innov(1)) / (sq(math::max(_params.flow_innov_gate, 1.0f)) * _flow_innov_var(1));
 	_optflow_test_ratio = math::max(test_ratio[0], test_ratio[1]);
 
 	for (uint8_t obs_index = 0; obs_index <= 1; obs_index++) {
-		if (test_ratio[obs_index] > 1.0f) {
-			flow_fail = true;
-			_innov_check_fail_status.value |= (1 << (obs_index + 10));
+		const bool innov_check_fail = (test_ratio[obs_index] > 1.0f);
+
+		if (innov_check_fail) {
+			all_innovation_checks_passed = false;
+		}
+
+		if (obs_index == 0) {
+			_innov_check_fail_status.flags.reject_optflow_X = innov_check_fail;
 
 		} else {
-			_innov_check_fail_status.value &= ~(1 << (obs_index + 10));
-
+			_innov_check_fail_status.flags.reject_optflow_Y = innov_check_fail;
 		}
 	}
 
 	// if either axis fails we abort the fusion
-	if (flow_fail) {
+	if (!all_innovation_checks_passed) {
 		return;
 
 	}
@@ -340,6 +344,7 @@ bool Ekf::calcOptFlowBodyRateComp()
 		return false;
 	}
 
+	bool is_body_rate_comp_available = false;
 	const bool use_flow_sensor_gyro = PX4_ISFINITE(_flow_sample_delayed.gyro_xyz(0)) && PX4_ISFINITE(_flow_sample_delayed.gyro_xyz(1)) && PX4_ISFINITE(_flow_sample_delayed.gyro_xyz(2));
 
 	if (use_flow_sensor_gyro) {
@@ -356,19 +361,26 @@ bool Ekf::calcOptFlowBodyRateComp()
 
 			// calculate the bias estimate using  a combined LPF and spike filter
 			_flow_gyro_bias = _flow_gyro_bias * 0.99f + matrix::constrain(measured_body_rate - reference_body_rate, -0.1f, 0.1f) * 0.01f;
+
+			is_body_rate_comp_available = true;
 		}
 
 	} else {
 		// Use the EKF gyro data if optical flow sensor gyro data is not available
 		// for clarification of the sign see definition of flowSample and imuSample in common.h
-		_flow_sample_delayed.gyro_xyz = -_imu_del_ang_of;
-		_flow_gyro_bias.zero();
+		if ((_delta_time_of > FLT_EPSILON)
+		    && (_flow_sample_delayed.dt > FLT_EPSILON)) {
+			_flow_sample_delayed.gyro_xyz = -_imu_del_ang_of / _delta_time_of * _flow_sample_delayed.dt;
+			_flow_gyro_bias.zero();
+
+			is_body_rate_comp_available = true;
+		}
 	}
 
 	// reset the accumulators
 	_imu_del_ang_of.setZero();
 	_delta_time_of = 0.0f;
-	return true;
+	return is_body_rate_comp_available;
 }
 
 // calculate the measurement variance for the optical flow sensor (rad/sec)^2

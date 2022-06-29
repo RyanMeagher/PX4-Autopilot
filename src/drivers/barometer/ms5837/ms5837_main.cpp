@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2021 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2022 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,10 +31,12 @@
  *
  ****************************************************************************/
 
-#include "MS5837.hpp"
-
+#include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/getopt.h>
+#include <px4_platform_common/i2c_spi_buses.h>
 #include <px4_platform_common/module.h>
+
+#include "MS5837.hpp"
 
 void MS5837::print_usage()
 {
@@ -42,25 +44,7 @@ void MS5837::print_usage()
 	PRINT_MODULE_USAGE_SUBCATEGORY("baro");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(true, false);
-	PRINT_MODULE_USAGE_PARAM_STRING('T', "0: MS5837_30BA", "0 for MS5837_30BA | 1 for MS5837_02BA", "Device type", true);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
-}
-
-I2CSPIDriverBase *MS5837::instantiate(const BusCLIArguments &cli, const BusInstanceIterator &iterator,
-				      int runtime_instance)
-{
-	MS5837 *dev = new MS5837(iterator.configuredBusOption(), iterator.bus(), cli.bus_frequency, (MS5837_TYPE)cli.type);
-
-	if (dev == nullptr) {
-		return nullptr;
-	}
-
-	if (OK != dev->init()) {
-		delete dev;
-		return nullptr;
-	}
-
-	return dev;
 }
 
 extern "C" int ms5837_main(int argc, char *argv[])
@@ -68,24 +52,7 @@ extern "C" int ms5837_main(int argc, char *argv[])
 	using ThisDriver = MS5837;
 	BusCLIArguments cli{true, false};
 	cli.default_i2c_frequency = 400000;
-	cli.type = MS5837_30BA;
-	int ch;
-
-	while ((ch = cli.getopt(argc, argv, "T:")) != EOF) {
-		switch (ch) {
-		case 'T': {
-				int val = atoi(cli.optarg());
-
-				if (val == 0) {
-					cli.type = MS5837_30BA;
-
-				} else if (val == 1) {
-					cli.type = MS5837_02BA;
-				}
-			}
-			break;
-		}
-	}
+	uint16_t dev_type_driver = DRV_BARO_DEVTYPE_MS5837;
 
 	const char *verb = cli.parseDefaultArguments(argc, argv);
 
@@ -94,7 +61,9 @@ extern "C" int ms5837_main(int argc, char *argv[])
 		return -1;
 	}
 
-	BusInstanceIterator iterator(MODULE_NAME, cli, DRV_BARO_DEVTYPE_MS5837);
+	cli.i2c_address = MS5837_ADDRESS;
+
+	BusInstanceIterator iterator(MODULE_NAME, cli, dev_type_driver);
 
 	if (!strcmp(verb, "start")) {
 		return ThisDriver::module_start(cli, iterator);

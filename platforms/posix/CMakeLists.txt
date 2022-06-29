@@ -25,27 +25,39 @@ px4_posix_generate_alias(
 	PREFIX ${PX4_SHELL_COMMAND_PREFIX}
 )
 
-add_executable(px4
-	src/px4/common/main.cpp
-	apps.cpp
-	)
+if (CMAKE_BUILD_TYPE STREQUAL FuzzTesting)
+	add_executable(px4
+		src/px4/common/main_fuzztesting.cpp
+		apps.cpp
+		)
+else()
+	add_executable(px4
+		src/px4/common/main.cpp
+		apps.cpp
+		)
+endif()
 
 target_link_libraries(px4
 	PRIVATE
 		${module_libraries}
-		pthread m
-
-		# horrible circular dependencies that need to be teased apart
-		px4_layer px4_platform
-		work_queue
+		m
 		parameters
 )
 
-if(NOT APPLE)
+if((NOT APPLE) AND (NOT ANDROID))
 	target_link_libraries(px4 PRIVATE rt)
 endif()
 
+if(NOT ANDROID)
+	target_link_libraries(px4 PRIVATE pthread)
+endif()
+
 target_link_libraries(px4 PRIVATE uORB)
+
+if (CMAKE_BUILD_TYPE STREQUAL FuzzTesting)
+	target_include_directories(px4 PRIVATE SYSTEM "${CMAKE_BINARY_DIR}/mavlink}")
+	target_compile_options(px4 PRIVATE "-Wno-cast-align")
+endif()
 
 #=============================================================================
 # install

@@ -70,14 +70,15 @@ private:
 		0,	//target_sys_id
 		MAV_COMP_ID_CAMERA // active_comp_id
 	};
+	int _sequence {1};
 
 	bool send() override
 	{
 		camera_trigger_s camera_trigger;
 
 		if ((_mavlink->get_free_tx_buf() >= get_size()) && _camera_trigger_sub.update(&camera_trigger)) {
-			/* ensure that only active trigger events are sent */
-			if (camera_trigger.timestamp > 0) {
+			/* ensure that only active trigger events are sent and ignore camera capture feedback messages*/
+			if (camera_trigger.timestamp > 0 && !camera_trigger.feedback) {
 				mavlink_camera_trigger_t msg{};
 				msg.time_usec = camera_trigger.timestamp;
 				msg.seq = camera_trigger.seq;
@@ -90,7 +91,7 @@ private:
 				vcmd.param1 = 0.0f; // all cameras
 				vcmd.param2 = 0.0f; // duration 0 because only taking one picture
 				vcmd.param3 = 1.0f; // only take one
-				vcmd.param4 = NAN;
+				vcmd.param4 = (float)_sequence++;
 				vcmd.param5 = (double)NAN;
 				vcmd.param6 = (double)NAN;
 				vcmd.param7 = NAN;
